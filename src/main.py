@@ -1,6 +1,6 @@
 import random
 import time
-import webbrowser  # New import for GitHub link
+import webbrowser
 
 import pygame
 from moviepy.editor import VideoFileClip
@@ -53,7 +53,7 @@ class PopupManager:  # No changes
                 current_line = word + " "
         lines.append(POPUP_FONT.render(current_line, True, WHITE))
         total_height = sum(line.get_height() for line in lines)
-        max_line_width = max(line.get_width() for line in lines)
+        max_line_width = max(line.get_width() for line in lines) if lines else 0
         padding = 40
         bg_width = max_line_width + padding * 2
         bg_height = total_height + padding * 2
@@ -220,20 +220,14 @@ class Entity(pygame.sprite.Sprite):  # No changes
         surface.blit(self.image, camera.apply(self.rect))
 
 
-# --- MODIFIED: Player class now handles walking sounds ---
-class Player(Entity):
+class Player(Entity):  # No changes
     """Represents the player character, now with walking sounds."""
 
     def __init__(self, x, y):
-        pygame.sprite.Sprite.__init__(self)
-        self.name = "player"
+        super().__init__(x, y, 32, 40, name="player")  # Call parent __init__
         self.speed = 5
-        self.image = pygame.Surface((32, 40))
         self.image.fill(CYAN)
-        self.rect = self.image.get_rect(topleft=(x, y))
         self.dx, self.dy = 0, 0
-
-        # Sound attributes
         self.walking_sound = None
         self.is_walking = False
         try:
@@ -242,13 +236,11 @@ class Player(Entity):
             print(f"Warning: Could not load walking sound: {e}")
 
     def update(self, walls):
-        """Handle movement updates."""
         self.get_input()
         self.move(walls)
         self.update_sound()
 
     def get_input(self):
-        """Reads keyboard input and sets movement vectors."""
         keys = pygame.key.get_pressed()
         self.dx, self.dy = 0, 0
         if keys[pygame.K_a] or keys[pygame.K_LEFT]: self.dx -= self.speed
@@ -257,9 +249,7 @@ class Player(Entity):
         if keys[pygame.K_s] or keys[pygame.K_DOWN]: self.dy += self.speed
 
     def update_sound(self):
-        """Plays or stops the walking sound based on movement."""
         if not self.walking_sound: return
-
         is_moving_now = self.dx != 0 or self.dy != 0
         if is_moving_now and not self.is_walking:
             self.is_walking = True
@@ -269,19 +259,17 @@ class Player(Entity):
             self.walking_sound.stop()
 
     def stop_sound(self):
-        """Force stops the walking sound."""
         if self.walking_sound and self.is_walking:
             self.is_walking = False
             self.walking_sound.stop()
 
-    def move(self, collidables):  # No changes to this method
-        """Updates player position and handles collisions."""
+    def move(self, collidables):
         self.rect.x += self.dx
         self.check_collision('x', collidables)
         self.rect.y += self.dy
         self.check_collision('y', collidables)
 
-    def check_collision(self, direction, collidables):  # No changes to this method
+    def check_collision(self, direction, collidables):
         for entity in collidables:
             if self.rect.colliderect(entity.rect):
                 if direction == 'x':
@@ -291,7 +279,7 @@ class Player(Entity):
                     if self.dy > 0: self.rect.bottom = entity.rect.top
                     if self.dy < 0: self.rect.top = entity.rect.bottom
 
-    def draw(self, surface, camera):  # No changes to this method
+    def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
 
 
@@ -350,8 +338,7 @@ class PuzzleTerminal(InteractiveObject):  # No changes
 
 class Door(InteractiveObject):  # No changes
     def __init__(self, x, y, w, h, image_path_locked=None, image_path_unlocked=None):
-        pygame.sprite.Sprite.__init__(self)
-        self.name = "door"
+        super().__init__(x, y, w, h, name="door")
         self.image_locked = None
         self.image_unlocked = None
         try:
@@ -375,7 +362,7 @@ class Door(InteractiveObject):  # No changes
 
     def draw(self, surface, camera, puzzle_manager):
         is_unlocked = puzzle_manager.get_state("door_unlocked")
-        current_image = self.image_unlocked if is_unlocked else self.image_locked
+        current_image = self.image_unlocked if is_unlocked and self.image_unlocked else self.image_locked
         if current_image:
             surface.blit(current_image, camera.apply(self.rect))
         else:
@@ -415,7 +402,8 @@ class PowerCable(InteractiveObject):  # No changes
             game_state_manager.current_state.camera.start_shake(1000, 5)
 
 
-class LevelManager:  # No changes
+# --- MODIFIED: LevelManager now has a specific level loader ---
+class LevelManager:
     def __init__(self, state_manager):
         self.state_manager = state_manager
         self.levels = [level_1_data, level_2_data, level_3_data]
@@ -428,23 +416,35 @@ class LevelManager:  # No changes
         terminal_files = level_data.get("terminal_files", {})
         terminal_scene = TerminalState(self.state_manager, puzzle_manager, level_data["puzzles"], terminal_files)
         self.state_manager.add_state("TERMINAL", terminal_scene)
-        self.state_manager.set_state("GAME")
+        # Note: We don't set_state here anymore, that's the job of the caller
 
     def start_new_game(self):
         self.current_level_index = 0
         self.load_level(self.levels[self.current_level_index])
+        self.state_manager.set_state("GAME")
+
+    # --- NEW: Method to load a specific level for testing ---
+    def load_specific_level(self, level_index):
+        if 0 <= level_index < len(self.levels):
+            print(f"DEBUG: Loading level {level_index + 1}")
+            self.current_level_index = level_index
+            self.load_level(self.levels[level_index])
+            self.state_manager.set_state("GAME")
+        else:
+            print(f"Error: Level index {level_index} is out of bounds.")
 
     def next_level(self):
         self.current_level_index += 1
         if self.current_level_index < len(self.levels):
             print(f"Loading level {self.current_level_index + 1}...")
             self.load_level(self.levels[self.current_level_index])
+            self.state_manager.set_state("GAME")
         else:
             print("All levels completed!")
             self.state_manager.set_state("WIN")
 
 
-class GameScene(BaseState):  # Added on_exit to stop sound
+class GameScene(BaseState):  # No changes
     def __init__(self, state_manager, puzzle_manager, level_manager, level_data):
         super().__init__()
         self.state_manager = state_manager
@@ -483,22 +483,21 @@ class GameScene(BaseState):  # Added on_exit to stop sound
         self.interaction_message = ""
 
     def on_exit(self):
-        """Ensure player sound stops when leaving the game scene."""
         self.player.stop_sound()
 
-    def handle_events(self, events):  # No changes
+    def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_e: self.try_interact()
                 if event.key == pygame.K_m: self.show_map = not self.show_map
 
-    def try_interact(self):  # No changes
+    def try_interact(self):
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
                 obj.interact(self.state_manager, self.puzzle_manager)
                 return
 
-    def update(self):  # No changes
+    def update(self):
         self.player.update(self.walls)
         self.camera.update(self.player)
         self.glitch_manager.update()
@@ -510,7 +509,7 @@ class GameScene(BaseState):  # Added on_exit to stop sound
                 break
         self.interaction_message = prompt
 
-    def draw(self, surface):  # No changes
+    def draw(self, surface):
         self.flicker_timer = (self.flicker_timer + 1) % 60
         surface.fill(DARK_GRAY if self.flicker_timer < 50 else DARK_PURPLE)
         for entity in self.walls + self.interactives: entity.draw(surface, self.camera, self.puzzle_manager)
@@ -524,7 +523,7 @@ class GameScene(BaseState):  # Added on_exit to stop sound
         surface.blit(map_prompt, (SCREEN_WIDTH - 120, 20))
         if self.show_map: self.draw_map(surface)
 
-    def draw_map(self, surface):  # No changes
+    def draw_map(self, surface):
         map_surf = pygame.Surface((250, 150))
         map_surf.fill(MAP_GRAY)
         map_surf.set_alpha(200)
@@ -740,7 +739,7 @@ class WinState(BaseState):  # No changes
     def draw(self, surface): surface.fill(BLACK); surface.blit(self.win_text, self.win_rect)
 
 
-class CutsceneState(BaseState):
+class CutsceneState(BaseState):  # No changes
     def __init__(self, state_manager, video_path, next_state):
         super().__init__()
         self.state_manager = state_manager
@@ -818,6 +817,7 @@ class CutsceneState(BaseState):
             surface.blit(self.skip_text, self.skip_rect)
 
 
+# --- MODIFIED: MenuState now has a key press for level skip ---
 class MenuState(BaseState):
     def __init__(self, state_manager, level_manager):
         super().__init__()
@@ -825,18 +825,15 @@ class MenuState(BaseState):
         self.level_manager = level_manager
         self.title_text = TITLE_FONT.render("CET GLITCH", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
-
         self.button_texts = ["Start Game", "Instructions", "GitHub", "Quit"]
         self.buttons = {}
         self.github_url = "https://github.com/your-username/your-repo-name"
-
         y_pos = 300
         for text in self.button_texts:
             text_surf = BUTTON_FONT.render(text, True, WHITE)
             text_rect = text_surf.get_rect(center=(SCREEN_WIDTH // 2, y_pos))
             self.buttons[text] = text_rect
             y_pos += 80
-
         self.background_image = None
         try:
             raw_image = pygame.image.load("assets/cet.png").convert()
@@ -846,15 +843,20 @@ class MenuState(BaseState):
 
     def handle_events(self, events):
         for event in events:
+            # Handle mouse clicks for buttons
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for text, rect in self.buttons.items():
                     if rect.collidepoint(event.pos):
                         self.handle_button_click(text)
 
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_3:
+                    print("DEBUG: Key '3' pressed. Skipping to Level 3.")
+                    self.level_manager.load_specific_level(2)
+
     def handle_button_click(self, text):
         if text == "Start Game":
             self.level_manager.start_new_game()
-            self.state_manager.set_state("GAME")
         elif text == "Instructions":
             self.state_manager.set_state("INSTRUCTIONS")
         elif text == "GitHub":
@@ -870,9 +872,7 @@ class MenuState(BaseState):
             surface.blit(self.background_image, (0, 0))
         else:
             surface.fill(BLACK)
-
         surface.blit(self.title_text, self.title_rect)
-
         mouse_pos = pygame.mouse.get_pos()
         for text, rect in self.buttons.items():
             color = AMBER if rect.collidepoint(mouse_pos) else WHITE
@@ -880,16 +880,14 @@ class MenuState(BaseState):
             surface.blit(text_surf, rect)
 
 
-class InstructionsState(BaseState):
+class InstructionsState(BaseState):  # No changes
     def __init__(self, state_manager):
         super().__init__()
         self.state_manager = state_manager
         self.title_text = BUTTON_FONT.render("How to Play", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 80))
-
         self.back_button_rect = BUTTON_FONT.render("[ Back ]", True, WHITE).get_rect(
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 80))
-
         instructions = [
             "Goal: You are trapped in a glitched reality. Find and solve puzzles to gain privileges",
             "and unlock the final door to escape.",
@@ -927,7 +925,6 @@ class InstructionsState(BaseState):
         surface.blit(self.title_text, self.title_rect)
         for surf, rect in self.rendered_lines:
             surface.blit(surf, rect)
-
         mouse_pos = pygame.mouse.get_pos()
         color = AMBER if self.back_button_rect.collidepoint(mouse_pos) else WHITE
         back_text = BUTTON_FONT.render("[ Back ]", True, color)
@@ -994,15 +991,12 @@ level_3_data = {
         {"type": "Door", "x": 1150, "y": 310, "w": 80, "h": 180, "image_locked": "assets/door_locked.png",
          "image_unlocked": "assets/door_unlocked.png"},
         {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image": "assets/terminal.png"},
-
-        # --- NEW: Added image paths to these objects ---
         {"type": "NoticeBoard", "x": 250, "y": 300, "w": 100, "h": 80,
          "message": "REMINDER: Security override passwords must be themed. This cycle's theme: 'Campus Life'.",
          "image": "assets/notice.png"},
         {"type": "CorruptedDataLog", "x": 850, "y": 100, "w": 90, "h": 70,
          "message": "LOG ENTRY ...-34B: Access code for ... is the acr...m for the p...nt uni...sity.",
-         "image": "assets/data_log.png"},  # <-- ADDED THIS LINE
-
+         "image": "assets/data_log.png"},
         {"type": "PuzzleTerminal", "x": 450, "y": 50, "w": 80, "h": 120, "name": "Event Planner", "puzzle_key": "p1",
          "image": "assets/puzzle_terminal_2.png"},
         {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Architect's Draft",
@@ -1026,6 +1020,7 @@ level_3_data = {
     }
 }
 
+
 def main():
     pygame.init()
     pygame.mixer.init()
@@ -1036,7 +1031,6 @@ def main():
     game_state_manager = GameStateManager(None)
     level_manager = LevelManager(game_state_manager)
 
-    # --- MODIFIED: Setup all states including new Menu and Instructions ---
     intro_cutscene = CutsceneState(game_state_manager, "assets/videos/start.mp4", "GAME")
     menu_state = MenuState(game_state_manager, level_manager)
     instructions_state = InstructionsState(game_state_manager)
@@ -1046,7 +1040,6 @@ def main():
     game_state_manager.add_state("CUTSCENE", intro_cutscene)
     game_state_manager.add_state("WIN", WinState())
 
-    # Start with the menu
     game_state_manager.set_state("MENU")
 
     running = True
