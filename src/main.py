@@ -8,7 +8,7 @@ from moviepy.editor import VideoFileClip
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 FPS = 60
 
-# Colors... (no changes)
+# Colors
 BLACK = (0, 0, 0)
 DARK_PURPLE = (30, 0, 30)
 DARK_GRAY = (10, 10, 10)
@@ -27,7 +27,7 @@ UI_FONT = pygame.font.SysFont("Consolas", 24)
 MESSAGE_FONT = pygame.font.SysFont("Consolas", 32)
 TERMINAL_FONT = pygame.font.SysFont("Lucida Console", 20)
 POPUP_FONT = pygame.font.SysFont("Consolas", 28)
-# New fonts for the menu
+# Fonts for the menu
 TITLE_FONT = pygame.font.SysFont("Lucida Console", 96)
 BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 
@@ -220,11 +220,12 @@ class Entity(pygame.sprite.Sprite):  # No changes
         surface.blit(self.image, camera.apply(self.rect))
 
 
-class Player(Entity):  # No changes
+class Player(Entity):
     """Represents the player character, now with walking sounds."""
 
     def __init__(self, x, y):
-        super().__init__(x, y, 32, 40, name="player")  # Call parent __init__
+        # --- CORRECTED: Call the parent Entity's __init__ method ---
+        super().__init__(x, y, 32, 40, name="player")
         self.speed = 5
         self.image.fill(CYAN)
         self.dx, self.dy = 0, 0
@@ -402,8 +403,7 @@ class PowerCable(InteractiveObject):  # No changes
             game_state_manager.current_state.camera.start_shake(1000, 5)
 
 
-# --- MODIFIED: LevelManager now has a specific level loader ---
-class LevelManager:
+class LevelManager:  # No changes
     def __init__(self, state_manager):
         self.state_manager = state_manager
         self.levels = [level_1_data, level_2_data, level_3_data]
@@ -416,14 +416,12 @@ class LevelManager:
         terminal_files = level_data.get("terminal_files", {})
         terminal_scene = TerminalState(self.state_manager, puzzle_manager, level_data["puzzles"], terminal_files)
         self.state_manager.add_state("TERMINAL", terminal_scene)
-        # Note: We don't set_state here anymore, that's the job of the caller
 
     def start_new_game(self):
         self.current_level_index = 0
         self.load_level(self.levels[self.current_level_index])
         self.state_manager.set_state("GAME")
 
-    # --- NEW: Method to load a specific level for testing ---
     def load_specific_level(self, level_index):
         if 0 <= level_index < len(self.levels):
             print(f"DEBUG: Loading level {level_index + 1}")
@@ -556,7 +554,8 @@ class GameScene(BaseState):  # No changes
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
 
 
-class TerminalState(BaseState):  # No changes
+# --- MODIFIED: TerminalState now has text wrapping ---
+class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
         super().__init__()
         self.state_manager = state_manager
@@ -585,6 +584,24 @@ class TerminalState(BaseState):  # No changes
             "Type 'help' for a list of commands."
         ]
         self.add_output_multiline(boot_sequence)
+
+    # --- NEW: Helper method for text wrapping ---
+    def _wrap_text(self, text, font, max_width):
+        """Wraps a single line of text to a given width."""
+        words = text.split(' ')
+        lines = []
+        current_line = ""
+        for word in words:
+            # Test if adding the new word exceeds the width
+            test_line = current_line + word + " "
+            if font.size(test_line)[0] <= max_width:
+                current_line = test_line
+            else:
+                # If it exceeds, finalize the current line and start a new one
+                lines.append(current_line.strip())
+                current_line = word + " "
+        lines.append(current_line.strip())  # Add the last line
+        return lines
 
     def add_output(self, text, instant=False):
         if instant:
@@ -633,17 +650,28 @@ class TerminalState(BaseState):  # No changes
         parts = full_command.split()
         command = parts[0] if parts else ""
         if not command: return
+
         if command == "help":
             help_text = (
                 "Available Commands:\n"
                 "  status       - Show system and door status.\n"
                 "  unlock       - Attempt to unlock the main door (requires level 3).\n"
-                "  override     - Enter a code to gain privileges (e.g., 'override 1234').\n"
+                "  override <code> - Enter a code to gain privileges (e.g., 'override 1234').\n"
                 "  ls           - List available files.\n"
                 "  cat <file>   - Display the content of a file (e.g., 'cat log.txt').\n"
                 "  exit         - Close the terminal."
             )
-            self.add_output(help_text, instant=False)
+
+            # --- MODIFIED: Use the text wrapper for help command ---
+            max_width = SCREEN_WIDTH - 40  # 20px padding on each side
+            wrapped_text = []
+            for line in help_text.split('\n'):
+                wrapped_lines = self._wrap_text(line, TERMINAL_FONT, max_width)
+                wrapped_text.extend(wrapped_lines)
+
+            # Add the fully wrapped text instantly for better readability
+            self.add_output("\n".join(wrapped_text), instant=True)
+
         elif command == "status":
             priv = self.puzzle_manager.get_state('privilege_level')
             door = "UNLOCKED" if self.puzzle_manager.get_state("door_unlocked") else "LOCKED"
@@ -817,8 +845,7 @@ class CutsceneState(BaseState):  # No changes
             surface.blit(self.skip_text, self.skip_rect)
 
 
-# --- MODIFIED: MenuState now has a key press for level skip ---
-class MenuState(BaseState):
+class MenuState(BaseState):  # No changes
     def __init__(self, state_manager, level_manager):
         super().__init__()
         self.state_manager = state_manager
@@ -843,12 +870,10 @@ class MenuState(BaseState):
 
     def handle_events(self, events):
         for event in events:
-            # Handle mouse clicks for buttons
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for text, rect in self.buttons.items():
                     if rect.collidepoint(event.pos):
                         self.handle_button_click(text)
-
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_3:
                     print("DEBUG: Key '3' pressed. Skipping to Level 3.")
@@ -931,6 +956,7 @@ class InstructionsState(BaseState):  # No changes
         surface.blit(back_text, self.back_button_rect)
 
 
+# Level Data... (No changes)
 level_1_data = {
     "player": {"start_pos": (600, 400)},
     "walls": [(0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
