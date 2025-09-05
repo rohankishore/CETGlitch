@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waiting for Your Call</title>
+    <style>
+        /* CSS Styling */
+        body {
+            margin: 0;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e);
+            color: #f0e6ff; /* Soft lavender white */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .romantic-container {
+            position: relative;
+            z-index: 10;
+            padding: 40px;
+            text-shadow: 0 0 10px rgba(224, 204, 255, 0.7);
+        }
+
+        .moon {
+            width: 150px;
+            height: 150px;
+            background-color: #f7f7f7;
+            border-radius: 50%;
+            box-shadow: 0 0 20px #fff,
+                        0 0 40px #fff,
+                        0 0 60px #e0e0ff,
+                        inset -25px -15px 40px #c0c0c0; /* Adds crater-like effect */
+            margin: 0 auto 30px auto;
+            animation: pulse 4s infinite ease-in-out;
+        }
+
+        h1 {
+            font-size: 2.8em;
+            margin: 0;
+            font-weight: normal;
+        }
+
+        p {
+            font-size: 1.3em;
+            font-style: italic;
+            opacity: 0.8;
+            max-width: 600px;
+        }
+
+        /* The gentle pulsing animation for the moon */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 20px #fff, 0 0 40px #fff, 0 0 60px #e0e0ff, inset -25px -15px 40px #c0c0c0;
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 30px #fff, 0 0 60px #fff, 0 0 80px #e0e0ff, inset -25px -15px 40px #c0c0c0;
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 20px #fff, 0 0 40px #fff, 0 0 60px #e0e0ff, inset -25px -15px 40px #c0c0c0;
+            }
+        }
+
+        /* Styling for the background stars */
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle 2s infinite ease-in-out;
+            box-shadow: 0 0 5px #fff, 0 0 10px #fff;
+        }
+
+        /* Twinkling animation for the stars */
+        @keyframes twinkle {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="romantic-container">
+        <div class="moon"></div>
+        <h1>The Night is Quiet Without You, my lovely cutie kuchupuchu bbg</h1>
+        <p>But I'll be here, thinking of you under this same moon, waiting for the sound of your voice to fill the silence.</p>
+    </div>
+
+    <script>
+        // JavaScript for creating a sky full of twinkling stars
+        function createStars() {
+            const numberOfStars = 150;
+            const body = document.body;
+            for (let i = 0; i < numberOfStars; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+
+                // Random size for variety
+                const size = Math.random() * 3 + 1; // Size between 1px and 4px
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+
+                // Random position
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.left = `${Math.random() * 100}%`;
+
+                // Random animation delay and duration to make them twinkle out of sync
+                star.style.animationDelay = `${Math.random() * 2}s`;
+                star.style.animationDuration = `${(Math.random() * 3) + 2}s`;
+
+                body.appendChild(star);
+            }
+        }
+
+        // Run the function when the page loads
+        window.onload = createStars;
+    </script>
+
+</body>
+</html>
