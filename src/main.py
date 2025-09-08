@@ -404,6 +404,10 @@ class PowerCable(InteractiveObject):
             game_state_manager.current_state.glitch_manager.trigger_glitch(1000, 15)
             game_state_manager.current_state.camera.start_shake(1000, 5)
 
+            current_scene = game_state_manager.current_state
+            if current_scene.hum_sound:
+                current_scene.hum_sound.play(loops=-1)  # loops=-1 plays it forever
+
 
 class LevelManager:
     def __init__(self, state_manager):
@@ -456,6 +460,14 @@ class GameScene(BaseState):
         self.show_map = False
         player_pos = level_data["player"]["start_pos"]
         self.player = Player(player_pos[0], player_pos[1])
+
+        self.hum_sound = None
+        try:
+            self.hum_sound = pygame.mixer.Sound("assets/audios/hum.mp3")
+            self.hum_sound.set_volume(0.2)
+        except pygame.error as e:
+            print(f"Warning: Could not load hum sound: {e}")
+
         self.interactives = []
         for obj_data in level_data["objects"]:
             obj_type = obj_data["type"]
@@ -484,6 +496,8 @@ class GameScene(BaseState):
 
     def on_exit(self):
         self.player.stop_sound()
+        if self.hum_sound:
+            self.hum_sound.stop()
 
     def handle_events(self, events):
         for event in events:
@@ -556,7 +570,6 @@ class GameScene(BaseState):
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
 
 
-# --- MODIFIED: TerminalState now has text wrapping ---
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
         super().__init__()
@@ -594,15 +607,13 @@ class TerminalState(BaseState):
         lines = []
         current_line = ""
         for word in words:
-            # Test if adding the new word exceeds the width
             test_line = current_line + word + " "
             if font.size(test_line)[0] <= max_width:
                 current_line = test_line
             else:
-                # If it exceeds, finalize the current line and start a new one
                 lines.append(current_line.strip())
                 current_line = word + " "
-        lines.append(current_line.strip())  # Add the last line
+        lines.append(current_line.strip())
         return lines
 
     def add_output(self, text, instant=False):
