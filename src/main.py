@@ -854,7 +854,7 @@ class MenuState(BaseState):  # No changes
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
         self.button_texts = ["Start Game", "Instructions", "GitHub", "Quit"]
         self.buttons = {}
-        self.github_url = "https://github.com/your-username/your-repo-name"
+        self.github_url = "https://github.com/rohankishore/"
         y_pos = 300
         for text in self.button_texts:
             text_surf = BUTTON_FONT.render(text, True, WHITE)
