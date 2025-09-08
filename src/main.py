@@ -32,7 +32,7 @@ TITLE_FONT = pygame.font.SysFont("Lucida Console", 96)
 BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 
 
-class PopupManager:  # No changes
+class PopupManager:
     """Manages displaying and timing out popup messages."""
 
     def __init__(self):
@@ -76,7 +76,7 @@ class PopupManager:  # No changes
             surface.blit(popup['surface'], popup['rect'])
 
 
-class GameStateManager:  # No changes
+class GameStateManager:
     """Manages the current state of the game."""
 
     def __init__(self, initial_state):
@@ -100,7 +100,7 @@ class GameStateManager:  # No changes
     def draw(self, surface): self.current_state.draw(surface)
 
 
-class BaseState:  # No changes
+class BaseState:
     """A template for all game states."""
 
     def __init__(self): pass
@@ -116,7 +116,7 @@ class BaseState:  # No changes
     def draw(self, surface): pass
 
 
-class GlitchManager:  # No changes
+class GlitchManager:
     """Creates intense, screen-wide visual distortion effects."""
 
     def __init__(self):
@@ -146,7 +146,7 @@ class GlitchManager:  # No changes
                 surface.blit(subsurface, (offset, y))
 
 
-class Camera:  # No changes
+class Camera:
     """Manages the game's viewport and screen shake."""
 
     def __init__(self, width, height):
@@ -177,7 +177,7 @@ class Camera:  # No changes
         self.rect.topleft = (x, y)
 
 
-class PuzzleManager:  # No changes
+class PuzzleManager:
     """Tracks the state of puzzles and game progression."""
 
     def __init__(self):
@@ -198,7 +198,7 @@ class PuzzleManager:  # No changes
         print(f"[PuzzleManager] Privilege level increased to: {self.state['privilege_level']}")
 
 
-class Entity(pygame.sprite.Sprite):  # No changes
+class Entity(pygame.sprite.Sprite):
     """Base class for all game objects that can now handle images."""
 
     def __init__(self, x, y, w, h, name="", image_path=None):
@@ -224,7 +224,9 @@ class Player(Entity):
     """Represents the player character, now with walking sounds."""
 
     def __init__(self, x, y):
-        # --- CORRECTED: Call the parent Entity's __init__ method ---
+        # --- CORRECTED: Call the parent Entity's __init__ method. ---
+        # This was the main bug. Without this call, the Player object would
+        # not have self.image or self.rect, causing a crash.
         super().__init__(x, y, 32, 40, name="player")
         self.speed = 5
         self.image.fill(CYAN)
@@ -284,18 +286,18 @@ class Player(Entity):
         surface.blit(self.image, camera.apply(self.rect))
 
 
-class Wall(Entity):  # No changes
+class Wall(Entity):
     def __init__(self, x, y, w, h):
         super().__init__(x, y, w, h, "wall")
 
 
-class InteractiveObject(Entity):  # No changes
+class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
 
 
-class NoticeBoard(InteractiveObject):  # No changes
+class NoticeBoard(InteractiveObject):
     def __init__(self, x, y, w, h, message, image_path=None):
         super().__init__(x, y, w, h, "notice board", image_path=image_path)
         self.message = message
@@ -307,7 +309,7 @@ class NoticeBoard(InteractiveObject):  # No changes
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
 
 
-class CorruptedDataLog(InteractiveObject):  # No changes
+class CorruptedDataLog(InteractiveObject):
     def __init__(self, x, y, w, h, message, image_path=None):
         super().__init__(x, y, w, h, "corrupted data log", image_path=image_path)
         self.message = message
@@ -320,7 +322,7 @@ class CorruptedDataLog(InteractiveObject):  # No changes
         game_state_manager.current_state.glitch_manager.trigger_glitch(500, 10)
 
 
-class PuzzleTerminal(InteractiveObject):  # No changes
+class PuzzleTerminal(InteractiveObject):
     def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image_path=None):
         super().__init__(x, y, w, h, name, image_path=image_path)
         self.puzzle_id = puzzle_id
@@ -337,7 +339,7 @@ class PuzzleTerminal(InteractiveObject):  # No changes
                 f"{self.question} The answer is the override code.", 8)
 
 
-class Door(InteractiveObject):  # No changes
+class Door(InteractiveObject):
     def __init__(self, x, y, w, h, image_path_locked=None, image_path_unlocked=None):
         super().__init__(x, y, w, h, name="door")
         self.image_locked = None
@@ -371,7 +373,7 @@ class Door(InteractiveObject):  # No changes
             pygame.draw.rect(surface, color, camera.apply(self.rect))
 
 
-class Terminal(InteractiveObject):  # No changes
+class Terminal(InteractiveObject):
     def __init__(self, x, y, w, h, image_path=None):
         super().__init__(x, y, w, h, "old terminal", image_path=image_path)
 
@@ -386,7 +388,7 @@ class Terminal(InteractiveObject):  # No changes
             game_state_manager.current_state.popup_manager.add_popup("No power to the terminal.", 2)
 
 
-class PowerCable(InteractiveObject):  # No changes
+class PowerCable(InteractiveObject):
     def __init__(self, x, y, w, h, image_path=None):
         super().__init__(x, y, w, h, "pile of cables", image_path=image_path)
 
@@ -403,7 +405,7 @@ class PowerCable(InteractiveObject):  # No changes
             game_state_manager.current_state.camera.start_shake(1000, 5)
 
 
-class LevelManager:  # No changes
+class LevelManager:
     def __init__(self, state_manager):
         self.state_manager = state_manager
         self.levels = [level_1_data, level_2_data, level_3_data]
@@ -442,7 +444,7 @@ class LevelManager:  # No changes
             self.state_manager.set_state("WIN")
 
 
-class GameScene(BaseState):  # No changes
+class GameScene(BaseState):
     def __init__(self, state_manager, puzzle_manager, level_manager, level_data):
         super().__init__()
         self.state_manager = state_manager
@@ -662,7 +664,7 @@ class TerminalState(BaseState):
                 "  exit         - Close the terminal."
             )
 
-            # --- MODIFIED: Use the text wrapper for help command ---
+            # --- MODIFIED: Use the text wrapper for the help command ---
             max_width = SCREEN_WIDTH - 40  # 20px padding on each side
             wrapped_text = []
             for line in help_text.split('\n'):
@@ -708,7 +710,13 @@ class TerminalState(BaseState):
             if len(parts) > 1:
                 filename = parts[1]
                 if filename in self.files:
-                    self.add_output(self.files[filename], instant=True)
+                    # --- MODIFIED: Use text wrapper for file content as well ---
+                    max_width = SCREEN_WIDTH - 40
+                    wrapped_text = []
+                    for line in self.files[filename].split('\n'):
+                        wrapped_lines = self._wrap_text(line, TERMINAL_FONT, max_width)
+                        wrapped_text.extend(wrapped_lines)
+                    self.add_output("\n".join(wrapped_text), instant=True)
                 else:
                     self.add_output(f"ERROR: File not found: '{filename}'", instant=False)
             else:
@@ -758,7 +766,7 @@ class TerminalState(BaseState):
                 pygame.draw.rect(surface, GREEN, cursor_rect)
 
 
-class WinState(BaseState):  # No changes
+class WinState(BaseState):
     def __init__(self):
         super().__init__()
         self.win_text = MESSAGE_FONT.render("You escaped the glitch.", True, BRIGHT_GREEN)
@@ -767,7 +775,7 @@ class WinState(BaseState):  # No changes
     def draw(self, surface): surface.fill(BLACK); surface.blit(self.win_text, self.win_rect)
 
 
-class CutsceneState(BaseState):  # No changes
+class CutsceneState(BaseState):
     def __init__(self, state_manager, video_path, next_state):
         super().__init__()
         self.state_manager = state_manager
@@ -845,7 +853,7 @@ class CutsceneState(BaseState):  # No changes
             surface.blit(self.skip_text, self.skip_rect)
 
 
-class MenuState(BaseState):  # No changes
+class MenuState(BaseState):
     def __init__(self, state_manager, level_manager):
         super().__init__()
         self.state_manager = state_manager
@@ -905,7 +913,7 @@ class MenuState(BaseState):  # No changes
             surface.blit(text_surf, rect)
 
 
-class InstructionsState(BaseState):  # No changes
+class InstructionsState(BaseState):
     def __init__(self, state_manager):
         super().__init__()
         self.state_manager = state_manager
@@ -956,7 +964,7 @@ class InstructionsState(BaseState):  # No changes
         surface.blit(back_text, self.back_button_rect)
 
 
-# Level Data... (No changes)
+# Level Data...
 level_1_data = {
     "player": {"start_pos": (600, 400)},
     "walls": [(0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
@@ -1041,8 +1049,8 @@ level_3_data = {
                "answer": "ktu"}
     },
     "terminal_files": {
-        "security_log.txt": "SECURITY ALERT: Unauthorized access attempts detected.\nMultiple uses of the 'override' command with invalid codes.\nSystem integrity is compromised. All personnel should be vigilant.",
-        "note_to_self.txt": "My password is so easy to remember.\nIt's just the name of that arts fest... the one with all the music.\nWhat was it again? Starts with a D..."
+        "security_log.txt": "SECURITY ALERT: Unauthorized access attempts detected. Multiple uses of the 'override' command with invalid codes. System integrity is compromised. All personnel should be vigilant.",
+        "note_to_self.txt": "My password is so easy to remember. It's just the name of that arts fest... the one with all the music. What was it again? Starts with a D..."
     }
 }
 
@@ -1066,6 +1074,7 @@ def main():
     game_state_manager.add_state("CUTSCENE", intro_cutscene)
     game_state_manager.add_state("WIN", WinState())
 
+    # Set the initial state to the main menu
     game_state_manager.set_state("MENU")
 
     running = True
