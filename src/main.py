@@ -3,15 +3,19 @@ import time
 import webbrowser
 
 import pygame
-from moviepy.editor import VideoFileClip
+# moviepy is no longer needed
+# from moviepy.editor import VideoFileClip
 
+# --- Constants -----------------------------------------------------------------
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 FPS = 60
 
+# --- Colors --------------------------------------------------------------------
 BLACK = (0, 0, 0)
 DARK_PURPLE = (30, 0, 30)
 DARK_GRAY = (10, 10, 10)
 GREEN = (0, 255, 0)
+DARK_GREEN = (0, 50, 0)
 RED = (255, 100, 100)
 WHITE = (220, 220, 220)
 CYAN = (0, 200, 200)
@@ -21,23 +25,87 @@ MAP_GRAY = (50, 50, 50)
 MAP_WALL = (100, 100, 100)
 POPUP_BG = (20, 20, 40, 220)
 
-pygame.font.init()
+# --- Asset Management & Initialization -----------------------------------------
+pygame.init()
+pygame.mixer.init()
+
+# --- Fonts ---------------------------------------------------------------------
 UI_FONT = pygame.font.SysFont("Consolas", 24)
 MESSAGE_FONT = pygame.font.SysFont("Consolas", 32)
 TERMINAL_FONT = pygame.font.SysFont("Lucida Console", 20)
 POPUP_FONT = pygame.font.SysFont("Consolas", 28)
-
 TITLE_FONT = pygame.font.SysFont("Lucida Console", 96)
 BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
+LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
+
+
+class AssetManager:
+    """A central place to load and hold all assets to avoid reloading."""
+    def __init__(self):
+        self.images = {}
+        self.sounds = {}
+        self.load_assets()
+
+    def load_image(self, name, path):
+        try:
+            self.images[name] = pygame.image.load(path).convert_alpha()
+        except pygame.error as e:
+            print(f"Warning: Could not load image '{path}': {e}")
+            self.images[name] = None
+
+    def load_sound(self, name, path):
+        try:
+            self.sounds[name] = pygame.mixer.Sound(path)
+        except pygame.error as e:
+            print(f"Warning: Could not load sound '{path}': {e}")
+            self.sounds[name] = None
+
+    def load_assets(self):
+        # Images
+        ### REMOVED ### The player.png is no longer loaded
+        # self.load_image("player", "assets/player.png")
+        self.load_image("terminal", "assets/terminal.png")
+        self.load_image("cables", "assets/cables.png")
+        self.load_image("door_locked", "assets/door_locked.png")
+        self.load_image("door_unlocked", "assets/door_unlocked.png")
+        self.load_image("puzzle_terminal_1", "assets/puzzle_terminal_1.png")
+        self.load_image("puzzle_terminal_2", "assets/puzzle_terminal_2.png")
+        self.load_image("puzzle_terminal_3", "assets/puzzle_terminal_3.png")
+        self.load_image("notice", "assets/notice.png")
+        self.load_image("data_log", "assets/data_log.png")
+        self.load_image("background", "assets/cet.png")
+
+        # Sounds
+        self.load_sound("walk", "assets/audios/walk.mp3")
+        self.load_sound("hum", "assets/audios/hum.mp3")
+        self.load_sound("glitch", "assets/audios/glitch.mp3")
+        self.load_sound("interact", "assets/audios/interact.mp3")
+        self.load_sound("popup", "assets/audios/popup.mp3")
+        self.load_sound("key_press", "assets/audios/key_press.mp3")
+        self.load_sound("terminal_error", "assets/audios/terminal_error.mp3")
+        self.load_sound("override_success", "assets/audios/override_success.mp3")
+
+        # Music (using sound for looping control)
+        self.load_sound("menu_music", "assets/audios/menu.mp3")
+        self.load_sound("ambient_music", "assets/audios/ambience.mp3")
+        self.load_sound("terminal_music", "assets/audios/terminal_music.mp3")
+
+    def get_image(self, name):
+        return self.images.get(name)
+
+    def get_sound(self, name):
+        return self.sounds.get(name)
+
+
+assets = AssetManager()
 
 
 class PopupManager:
-    """Manages displaying and timing out popup messages."""
-
     def __init__(self):
         self.popups = []
 
     def add_popup(self, text, duration_seconds):
+        if assets.get_sound("popup"): assets.get_sound("popup").play()
         end_time = pygame.time.get_ticks() + duration_seconds * 1000
         lines = []
         words = text.split(' ')
@@ -76,8 +144,6 @@ class PopupManager:
 
 
 class GameStateManager:
-    """Manages the current state of the game."""
-
     def __init__(self, initial_state):
         self.states = {}
         self.current_state_name = initial_state
@@ -93,39 +159,33 @@ class GameStateManager:
         self.current_state.on_enter()
 
     def handle_events(self, events): self.current_state.handle_events(events)
-
     def update(self): self.current_state.update()
-
     def draw(self, surface): self.current_state.draw(surface)
 
 
 class BaseState:
-    """A template for all game states."""
-
     def __init__(self): pass
-
     def on_enter(self): pass
-
-    def on_exit(self): pass
-
+    def on_exit(self):
+        pygame.mixer.stop()
     def handle_events(self, events): pass
-
     def update(self): pass
-
     def draw(self, surface): pass
 
 
 class GlitchManager:
-    """Creates intense, screen-wide visual distortion effects."""
-
     def __init__(self):
         self.glitches = []
         self.active = False
+        self.glitch_sound = assets.get_sound("glitch")
+        if self.glitch_sound: self.glitch_sound.set_volume(0.5)
 
     def trigger_glitch(self, duration_ms, intensity):
         end_time = pygame.time.get_ticks() + duration_ms
         self.glitches.append({'end_time': end_time, 'intensity': intensity})
         self.active = True
+        if self.glitch_sound and not pygame.mixer.get_busy():
+            self.glitch_sound.play()
 
     def update(self):
         current_time = pygame.time.get_ticks()
@@ -146,8 +206,6 @@ class GlitchManager:
 
 
 class Camera:
-    """Manages the game's viewport and screen shake."""
-
     def __init__(self, width, height):
         self.rect = pygame.Rect(0, 0, width, height)
         self.shake_intensity = 0
@@ -177,8 +235,6 @@ class Camera:
 
 
 class PuzzleManager:
-    """Tracks the state of puzzles and game progression."""
-
     def __init__(self):
         self.state = {
             "power_restored": False, "door_unlocked": False, "privilege_level": 0,
@@ -198,19 +254,13 @@ class PuzzleManager:
 
 
 class Entity(pygame.sprite.Sprite):
-    """Base class for all game objects that can now handle images."""
-
-    def __init__(self, x, y, w, h, name="", image_path=None):
+    def __init__(self, x, y, w, h, name="", image=None):
         super().__init__()
         self.name = name
-        self.image = None
-        if image_path:
-            try:
-                original_image = pygame.image.load(image_path).convert_alpha()
-                self.image = pygame.transform.scale(original_image, (w, h))
-            except pygame.error as e:
-                print(f"Error loading image '{image_path}': {e}")
-        if not self.image:
+        self.image = image
+        if image:
+            self.image = pygame.transform.scale(image, (w, h))
+        else:
             self.image = pygame.Surface((w, h))
             self.image.fill(DARK_PURPLE)
         self.rect = self.image.get_rect(topleft=(x, y))
@@ -220,20 +270,14 @@ class Entity(pygame.sprite.Sprite):
 
 
 class Player(Entity):
-    """Represents the player character, now with walking sounds."""
-
     def __init__(self, x, y):
-
+        ### MODIFIED ### Reverted to original cyan block player
         super().__init__(x, y, 32, 40, name="player")
-        self.speed = 5
         self.image.fill(CYAN)
+        self.speed = 5
         self.dx, self.dy = 0, 0
-        self.walking_sound = None
+        self.walking_sound = assets.get_sound("walk")
         self.is_walking = False
-        try:
-            self.walking_sound = pygame.mixer.Sound("assets/audios/walk.mp3")
-        except pygame.error as e:
-            print(f"Warning: Could not load walking sound: {e}")
 
     def update(self, walls):
         self.get_input()
@@ -290,13 +334,12 @@ class Wall(Entity):
 
 class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
-
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
 
 
 class NoticeBoard(InteractiveObject):
-    def __init__(self, x, y, w, h, message, image_path=None):
-        super().__init__(x, y, w, h, "notice board", image_path=image_path)
+    def __init__(self, x, y, w, h, message, image=None):
+        super().__init__(x, y, w, h, "notice board", image=image)
         self.message = message
 
     def get_interaction_message(self, puzzle_manager):
@@ -307,8 +350,8 @@ class NoticeBoard(InteractiveObject):
 
 
 class CorruptedDataLog(InteractiveObject):
-    def __init__(self, x, y, w, h, message, image_path=None):
-        super().__init__(x, y, w, h, "corrupted data log", image_path=image_path)
+    def __init__(self, x, y, w, h, message, image=None):
+        super().__init__(x, y, w, h, "corrupted data log", image=image)
         self.message = message
 
     def get_interaction_message(self, puzzle_manager):
@@ -320,11 +363,9 @@ class CorruptedDataLog(InteractiveObject):
 
 
 class PuzzleTerminal(InteractiveObject):
-    def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image_path=None):
-        super().__init__(x, y, w, h, name, image_path=image_path)
-        self.puzzle_id = puzzle_id
-        self.question = question
-        self.answer = answer
+    def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image=None):
+        super().__init__(x, y, w, h, name, image=image)
+        self.puzzle_id, self.question, self.answer = puzzle_id, question, answer
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state(f"{self.puzzle_id}_solved"): return f"The {self.name} is offline."
@@ -332,25 +373,16 @@ class PuzzleTerminal(InteractiveObject):
 
     def interact(self, game_state_manager, puzzle_manager):
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
-            game_state_manager.current_state.popup_manager.add_popup(
-                f"{self.question} The answer is the override code.", 8)
+            game_state_manager.current_state.popup_manager.add_popup(f"{self.question} The answer is the override code.", 8)
 
 
 class Door(InteractiveObject):
-    def __init__(self, x, y, w, h, image_path_locked=None, image_path_unlocked=None):
+    def __init__(self, x, y, w, h, image_locked=None, image_unlocked=None):
         super().__init__(x, y, w, h, name="door")
-        self.image_locked = None
-        self.image_unlocked = None
-        try:
-            if image_path_locked:
-                img_lock = pygame.image.load(image_path_locked).convert_alpha()
-                self.image_locked = pygame.transform.scale(img_lock, (w, h))
-            if image_path_unlocked:
-                img_unlock = pygame.image.load(image_path_unlocked).convert_alpha()
-                self.image_unlocked = pygame.transform.scale(img_unlock, (w, h))
-        except pygame.error as e:
-            print(f"Error loading door image: {e}")
-        self.image = self.image_locked if self.image_locked else pygame.Surface((w, h))
+        self.image_locked = pygame.transform.scale(image_locked, (w, h)) if image_locked else None
+        self.image_unlocked = pygame.transform.scale(image_unlocked, (w, h)) if image_unlocked else None
+        self.image = self.image_locked
+        if not self.image: self.image = pygame.Surface((w, h))
         self.rect = self.image.get_rect(topleft=(x, y))
 
     def get_interaction_message(self, puzzle_manager):
@@ -371,8 +403,8 @@ class Door(InteractiveObject):
 
 
 class Terminal(InteractiveObject):
-    def __init__(self, x, y, w, h, image_path=None):
-        super().__init__(x, y, w, h, "old terminal", image_path=image_path)
+    def __init__(self, x, y, w, h, image=None):
+        super().__init__(x, y, w, h, "old terminal", image=image)
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state("power_restored"): return "The terminal hums with power. [E] to access."
@@ -386,8 +418,8 @@ class Terminal(InteractiveObject):
 
 
 class PowerCable(InteractiveObject):
-    def __init__(self, x, y, w, h, image_path=None):
-        super().__init__(x, y, w, h, "pile of cables", image_path=image_path)
+    def __init__(self, x, y, w, h, image=None):
+        super().__init__(x, y, w, h, "pile of cables", image=image)
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state("power_restored"): return "The cables are connected to the backup generator."
@@ -396,25 +428,26 @@ class PowerCable(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         if not puzzle_manager.get_state("power_restored"):
             puzzle_manager.set_state("power_restored", True)
-            game_state_manager.current_state.popup_manager.add_popup(
-                "You connected the main cable. A low hum fills the room.", 4)
+            game_state_manager.current_state.popup_manager.add_popup("You connected the main cable. A low hum fills the room.", 4)
             game_state_manager.current_state.glitch_manager.trigger_glitch(1000, 15)
             game_state_manager.current_state.camera.start_shake(1000, 5)
-
-            current_scene = game_state_manager.current_state
-            if current_scene.hum_sound:
-                current_scene.hum_sound.play(loops=-1)
+            if game_state_manager.current_state.hum_sound:
+                game_state_manager.current_state.hum_sound.play(loops=-1)
 
 
 class LevelManager:
     def __init__(self, state_manager):
         self.state_manager = state_manager
         self.levels = [level_1_data, level_2_data, level_3_data, level_4_data, level_5_data]
+        self.level_themes = [
+            "Level 1: The Mainframe", "Level 2: The Data Halls", "Level 3: The Archives",
+            "Level 4: The Core Logic Unit", "Level 5: The System Kernel"
+        ]
         self.current_level_index = 0
 
-    def load_level(self, level_data):
+    def load_level(self, level_data, level_title):
         puzzle_manager = PuzzleManager()
-        game_scene = GameScene(self.state_manager, puzzle_manager, self, level_data)
+        game_scene = GameScene(self.state_manager, puzzle_manager, self, level_data, level_title)
         self.state_manager.add_state("GAME", game_scene)
         terminal_files = level_data.get("terminal_files", {})
         terminal_scene = TerminalState(self.state_manager, puzzle_manager, level_data["puzzles"], terminal_files)
@@ -422,14 +455,14 @@ class LevelManager:
 
     def start_new_game(self):
         self.current_level_index = 0
-        self.load_level(self.levels[self.current_level_index])
+        self.load_level(self.levels[self.current_level_index], self.level_themes[self.current_level_index])
         self.state_manager.set_state("GAME")
 
     def load_specific_level(self, level_index):
         if 0 <= level_index < len(self.levels):
             print(f"DEBUG: Loading level {level_index + 1}")
             self.current_level_index = level_index
-            self.load_level(self.levels[level_index])
+            self.load_level(self.levels[level_index], self.level_themes[level_index])
             self.state_manager.set_state("GAME")
         else:
             print(f"Error: Level index {level_index} is out of bounds.")
@@ -438,63 +471,47 @@ class LevelManager:
         self.current_level_index += 1
         if self.current_level_index < len(self.levels):
             print(f"Loading level {self.current_level_index + 1}...")
-            self.load_level(self.levels[self.current_level_index])
+            self.load_level(self.levels[self.current_level_index], self.level_themes[self.current_level_index])
             self.state_manager.set_state("GAME")
         else:
             print("All levels completed!")
+            ### MODIFIED ### Changed to WIN state instead of OUTRO
             self.state_manager.set_state("WIN")
 
 
 class GameScene(BaseState):
-    def __init__(self, state_manager, puzzle_manager, level_manager, level_data):
+    def __init__(self, state_manager, puzzle_manager, level_manager, level_data, level_title):
         super().__init__()
-        self.state_manager = state_manager
-        self.puzzle_manager = puzzle_manager
-        self.level_manager = level_manager
-        self.glitch_manager = GlitchManager()
-        self.camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
-        self.popup_manager = PopupManager()
+        self.state_manager, self.puzzle_manager, self.level_manager = state_manager, puzzle_manager, level_manager
+        self.glitch_manager, self.camera, self.popup_manager = GlitchManager(), Camera(SCREEN_WIDTH, SCREEN_HEIGHT), PopupManager()
         self.show_map = False
-        player_pos = level_data["player"]["start_pos"]
-        self.player = Player(player_pos[0], player_pos[1])
-
-        self.hum_sound = None
-        try:
-            self.hum_sound = pygame.mixer.Sound("assets/audios/hum.mp3")
-            self.hum_sound.set_volume(0.2)
-        except pygame.error as e:
-            print(f"Warning: Could not load hum sound: {e}")
-
+        self.player = Player(level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1])
+        self.hum_sound, self.interact_sound, self.ambient_music = assets.get_sound("hum"), assets.get_sound("interact"), assets.get_sound("ambient_music")
+        self.level_title = level_title
+        self.level_title_surf = LEVEL_TITLE_FONT.render(level_title, True, WHITE)
+        self.level_title_rect = self.level_title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
+        self.level_title_timer = FPS * 3
         self.interactives = []
         for obj_data in level_data["objects"]:
-            obj_type = obj_data["type"]
-            x, y, w, h = obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
-            image_path = obj_data.get("image")
-            if obj_type == "Terminal":
-                self.interactives.append(Terminal(x, y, w, h, image_path=image_path))
-            elif obj_type == "PowerCable":
-                self.interactives.append(PowerCable(x, y, w, h, image_path=image_path))
-            elif obj_type == "Door":
-                self.interactives.append(Door(x, y, w, h,
-                                              image_path_locked=obj_data.get("image_locked"),
-                                              image_path_unlocked=obj_data.get("image_unlocked")))
+            obj_type, x, y, w, h = obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
+            if obj_type == "Terminal": self.interactives.append(Terminal(x, y, w, h, image=assets.get_image(obj_data["image_key"])))
+            elif obj_type == "PowerCable": self.interactives.append(PowerCable(x, y, w, h, image=assets.get_image(obj_data["image_key"])))
+            elif obj_type == "Door": self.interactives.append(Door(x, y, w, h, image_locked=assets.get_image(obj_data["image_locked_key"]), image_unlocked=assets.get_image(obj_data["image_unlocked_key"])))
             elif obj_type == "PuzzleTerminal":
                 p_info = level_data["puzzles"][obj_data["puzzle_key"]]
-                self.interactives.append(
-                    PuzzleTerminal(x, y, w, h, obj_data["name"], p_info["id"], p_info["question"], p_info["answer"],
-                                   image_path=image_path))
-            elif obj_type == "NoticeBoard":
-                self.interactives.append(NoticeBoard(x, y, w, h, obj_data["message"], image_path=image_path))
-            elif obj_type == "CorruptedDataLog":
-                self.interactives.append(CorruptedDataLog(x, y, w, h, obj_data["message"], image_path=image_path))
-        self.walls = [Wall(w[0], w[1], w[2], w[3]) for w in level_data["walls"]]
-        self.flicker_timer = 0
-        self.interaction_message = ""
+                self.interactives.append(PuzzleTerminal(x, y, w, h, obj_data["name"], p_info["id"], p_info["question"], p_info["answer"], image=assets.get_image(obj_data["image_key"])))
+            elif obj_type == "NoticeBoard": self.interactives.append(NoticeBoard(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"])))
+            elif obj_type == "CorruptedDataLog": self.interactives.append(CorruptedDataLog(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"])))
+        self.walls, self.flicker_timer, self.interaction_message = [Wall(w[0], w[1], w[2], w[3]) for w in level_data["walls"]], 0, ""
+
+    def on_enter(self):
+        if self.ambient_music: self.ambient_music.play(loops=-1, fade_ms=1000)
+        if self.puzzle_manager.get_state("power_restored") and self.hum_sound: self.hum_sound.play(loops=-1)
 
     def on_exit(self):
         self.player.stop_sound()
-        if self.hum_sound:
-            self.hum_sound.stop()
+        if self.hum_sound: self.hum_sound.stop()
+        if self.ambient_music: self.ambient_music.fadeout(500)
 
     def handle_events(self, events):
         for event in events:
@@ -505,12 +522,15 @@ class GameScene(BaseState):
     def try_interact(self):
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
+                if self.interact_sound: self.interact_sound.play()
                 obj.interact(self.state_manager, self.puzzle_manager)
                 return
 
     def update(self):
-        self.player.update(self.walls)
-        self.camera.update(self.player)
+        if self.level_title_timer > 0: self.level_title_timer -= 1
+        else:
+            self.player.update(self.walls)
+            self.camera.update(self.player)
         self.glitch_manager.update()
         self.popup_manager.update()
         prompt = ""
@@ -527,36 +547,25 @@ class GameScene(BaseState):
         self.player.draw(surface, self.camera)
         self.glitch_manager.draw(surface)
         self.popup_manager.draw(surface)
-        if self.interaction_message:
-            prompt_text = UI_FONT.render(self.interaction_message, True, WHITE)
-            surface.blit(prompt_text, (20, SCREEN_HEIGHT - 40))
-        map_prompt = UI_FONT.render("[M] Map", True, WHITE)
-        surface.blit(map_prompt, (SCREEN_WIDTH - 120, 20))
+        if self.interaction_message and self.level_title_timer <= 0:
+            surface.blit(UI_FONT.render(self.interaction_message, True, WHITE), (20, SCREEN_HEIGHT - 40))
+        surface.blit(UI_FONT.render("[M] Map", True, WHITE), (SCREEN_WIDTH - 120, 20))
         if self.show_map: self.draw_map(surface)
+        if self.level_title_timer > 0:
+            alpha = min(255, self.level_title_timer * 4) if self.level_title_timer < 60 else 255
+            self.level_title_surf.set_alpha(alpha)
+            surface.blit(self.level_title_surf, self.level_title_rect)
 
     def draw_map(self, surface):
-        map_surf = pygame.Surface((250, 150))
-        map_surf.fill(MAP_GRAY)
-        map_surf.set_alpha(200)
+        map_surf = pygame.Surface((250, 150)); map_surf.fill(MAP_GRAY); map_surf.set_alpha(200)
         all_rects = [w.rect for w in self.walls] + [p.rect for p in self.interactives]
         if not all_rects: return
-        min_x = min(r.left for r in all_rects)
-        max_x = max(r.right for r in all_rects)
-        min_y = min(r.top for r in all_rects)
-        max_y = max(r.bottom for r in all_rects)
-        world_w = max_x - min_x
-        world_h = max_y - min_y
+        min_x, max_x = min(r.left for r in all_rects), max(r.right for r in all_rects)
+        min_y, max_y = min(r.top for r in all_rects), max(r.bottom for r in all_rects)
+        world_w, world_h = max_x - min_x, max_y - min_y
         if world_w == 0 or world_h == 0: return
-        map_w, map_h = 250, 150
-        scale = min(map_w / world_w, map_h / world_h)
-
-        def scale_rect(rect):
-            scaled_x = (rect.x - min_x) * scale
-            scaled_y = (rect.y - min_y) * scale
-            scaled_w = rect.w * scale
-            scaled_h = rect.h * scale
-            return pygame.Rect(scaled_x, scaled_y, scaled_w, scaled_h)
-
+        scale = min(250 / world_w, 150 / world_h)
+        def scale_rect(rect): return pygame.Rect((rect.x - min_x) * scale, (rect.y - min_y) * scale, rect.w * scale, rect.h * scale)
         for wall in self.walls: pygame.draw.rect(map_surf, MAP_WALL, scale_rect(wall.rect))
         for obj in self.interactives:
             color = AMBER
@@ -570,358 +579,194 @@ class GameScene(BaseState):
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
         super().__init__()
-        self.state_manager = state_manager
-        self.puzzle_manager = puzzle_manager
-        self.puzzles = puzzles_data
-        self.files = terminal_files
-        self.input_text = ""
-        self.output_lines = []
-        self.cursor_visible = True
-        self.cursor_timer = 0
-        self.typewriter_effect = {"text": "", "pos": 0, "surf": None, "start_time": 0, "lines": []}
-        self.command_history = []
-        self.history_index = -1
+        self.state_manager, self.puzzle_manager, self.puzzles, self.files = state_manager, puzzle_manager, puzzles_data, terminal_files
+        self.input_text, self.output_lines, self.command_history, self.history_index = "", [], [], -1
+        self.cursor_visible, self.cursor_timer = True, 0
+        self.typewriter_effect = {"text": "", "pos": 0, "lines": [], "start_time": 0}
+        self.key_press_sound, self.error_sound, self.success_sound = assets.get_sound("key_press"), assets.get_sound("terminal_error"), assets.get_sound("override_success")
+        self.ambient_music = assets.get_sound("terminal_music")
+        self.transition_alpha, self.transition_state = 255, "in"
 
     def on_enter(self):
-        self.input_text = ""
-        self.output_lines = []
-        self.command_history = []
-        self.history_index = -1
-        boot_sequence = [
-            "CET OS v1.3a [Kernel: GL-0xDEADBEEF]",
-            "...",
-            "System Integrity Check... FAILED.",
-            "Memory Corruption Detected.",
-            f"User privilege level: {self.puzzle_manager.get_state('privilege_level')}",
-            "Type 'help' for a list of commands."
-        ]
+        self.transition_alpha, self.transition_state = 255, "in"
+        self.input_text, self.output_lines, self.command_history, self.history_index = "", [], [], -1
+        if self.ambient_music: self.ambient_music.play(loops=-1, fade_ms=500)
+        boot_sequence = ["CET OS v1.3a [Kernel: GL-0xDEADBEEF]", "...", "System Integrity Check... FAILED.", "Memory Corruption Detected.", f"User privilege level: {self.puzzle_manager.get_state('privilege_level')}", "Type 'help' for a list of commands."]
         self.add_output_multiline(boot_sequence)
 
+    def on_exit(self):
+        if self.ambient_music: self.ambient_music.fadeout(500)
+
     def _wrap_text(self, text, font, max_width):
-        """Wraps a single line of text to a given width."""
-        words = text.split(' ')
-        lines = []
-        current_line = ""
+        words, lines, current_line = text.split(' '), [], ""
         for word in words:
-            test_line = current_line + word + " "
-            if font.size(test_line)[0] <= max_width:
-                current_line = test_line
-            else:
-                lines.append(current_line.strip())
-                current_line = word + " "
+            if font.size(current_line + word)[0] <= max_width: current_line += word + " "
+            else: lines.append(current_line.strip()); current_line = word + " "
         lines.append(current_line.strip())
         return lines
 
     def add_output(self, text, instant=False):
-        if instant:
-            lines = text.split('\n')
-            for line in lines:
-                self.output_lines.append(TERMINAL_FONT.render(line, True, GREEN))
-        else:
-            surf = pygame.Surface(TERMINAL_FONT.size(text), pygame.SRCALPHA)
-            self.typewriter_effect = {"text": text, "pos": 0, "surf": surf, "start_time": time.time(), "lines": []}
-            self.output_lines.append(surf)
+        wrapped_lines = [line for single_line in text.split('\n') for line in self._wrap_text(single_line, TERMINAL_FONT, SCREEN_WIDTH - 40)]
+        if instant: self.output_lines.extend(wrapped_lines)
+        else: self.typewriter_effect = {"text": "", "pos": 0, "lines": wrapped_lines, "start_time": time.time()}
 
     def add_output_multiline(self, lines_list):
-        self.typewriter_effect = {"text": "", "pos": 0, "surf": None, "start_time": time.time(), "lines": lines_list}
+        self.typewriter_effect = {"text": "", "pos": 0, "lines": lines_list, "start_time": time.time()}
 
     def handle_events(self, events):
-        if self.typewriter_effect["text"] or self.typewriter_effect["lines"]: return
+        if self.transition_state != 'active': return
+        if self.typewriter_effect["lines"]:
+            if any(e.type == pygame.KEYDOWN for e in events): self.finish_typewriter()
+            return
         for event in events:
             if event.type == pygame.KEYDOWN:
+                if self.key_press_sound: self.key_press_sound.play()
                 if event.key == pygame.K_RETURN:
-                    if self.input_text.strip():
-                        self.command_history.insert(0, self.input_text)
-                        self.history_index = -1
+                    if self.input_text.strip(): self.command_history.insert(0, self.input_text); self.history_index = -1
                     self.process_command()
-                elif event.key == pygame.K_BACKSPACE:
-                    self.input_text = self.input_text[:-1]
-                elif event.key == pygame.K_ESCAPE:
-                    self.state_manager.set_state("GAME")
+                elif event.key == pygame.K_BACKSPACE: self.input_text = self.input_text[:-1]
+                elif event.key == pygame.K_ESCAPE: self.transition_state = "out"
                 elif event.key == pygame.K_UP:
-                    if self.history_index < len(self.command_history) - 1:
-                        self.history_index += 1
-                        self.input_text = self.command_history[self.history_index]
+                    if self.history_index < len(self.command_history) - 1: self.history_index += 1; self.input_text = self.command_history[self.history_index]
                 elif event.key == pygame.K_DOWN:
-                    if self.history_index > 0:
-                        self.history_index -= 1
-                        self.input_text = self.command_history[self.history_index]
-                    else:
-                        self.history_index = -1
-                        self.input_text = ""
-                else:
-                    self.input_text += event.unicode
+                    if self.history_index > 0: self.history_index -= 1; self.input_text = self.command_history[self.history_index]
+                    else: self.history_index = -1; self.input_text = ""
+                else: self.input_text += event.unicode
 
     def process_command(self):
-        full_command = self.input_text.lower().strip()
-        self.add_output(f"> {self.input_text}", instant=True)
-        self.input_text = ""
-        parts = full_command.split()
-        command = parts[0] if parts else ""
+        full_command, self.input_text = self.input_text.lower().strip(), ""
+        self.add_output(f"> {full_command}", instant=True)
+        parts = full_command.split(); command = parts[0] if parts else ""
         if not command: return
-
-        if command == "help":
-            help_text = (
-                "Available Commands:\n"
-                "  status       - Show system and door status.\n"
-                "  unlock       - Attempt to unlock the main door (requires level 3).\n"
-                "  override <code> - Enter a code to gain privileges (e.g., 'override 1234').\n"
-                "  ls           - List available files.\n"
-                "  cat <file>   - Display the content of a file (e.g., 'cat log.txt').\n"
-                "  exit         - Close the terminal."
-            )
-
-            max_width = SCREEN_WIDTH - 40
-            wrapped_text = []
-            for line in help_text.split('\n'):
-                wrapped_lines = self._wrap_text(line, TERMINAL_FONT, max_width)
-                wrapped_text.extend(wrapped_lines)
-
-            self.add_output("\n".join(wrapped_text), instant=True)
-
+        if command == "help": self.add_output("Available Commands:\n  status\n  unlock\n  override <code>\n  ls\n  cat <file>\n  exit", instant=True)
         elif command == "status":
-            priv = self.puzzle_manager.get_state('privilege_level')
-            door = "UNLOCKED" if self.puzzle_manager.get_state("door_unlocked") else "LOCKED"
-            self.add_output(f"Privilege: {priv}/3. Main Door: {door}. Network: OFFLINE.", instant=False)
+            priv, door = self.puzzle_manager.get_state('privilege_level'), "UNLOCKED" if self.puzzle_manager.get_state("door_unlocked") else "LOCKED"
+            self.add_output(f"Privilege: {priv}/3. Main Door: {door}. Network: OFFLINE.")
         elif command == "unlock":
             if self.puzzle_manager.get_state('privilege_level') >= 3:
-                self.add_output("Privilege accepted. Unlocking door...", instant=False)
-                self.puzzle_manager.set_state("door_unlocked", True)
-            else:
-                self.add_output(f"ERROR: Insufficient privileges. Level 3 required.", instant=False)
+                self.add_output("Privilege accepted. Unlocking door..."); self.puzzle_manager.set_state("door_unlocked", True)
+                if self.success_sound: self.success_sound.play()
+            else: self.add_output("ERROR: Insufficient privileges. Level 3 required."); self.error_sound.play()
         elif command == "override":
             if len(parts) > 1:
-                code = parts[1]
-                found_puzzle = False
-                for key, puzzle in self.puzzles.items():
+                code, found = parts[1], False
+                for puzzle in self.puzzles.values():
                     if code == puzzle["answer"]:
-                        found_puzzle = True
+                        found = True
                         if not self.puzzle_manager.get_state(f"{puzzle['id']}_solved"):
-                            self.puzzle_manager.set_state(f"{puzzle['id']}_solved", True)
-                            self.puzzle_manager.increment_privilege()
-                            self.add_output("Override code accepted. Privilege level increased.", instant=False)
-                        else:
-                            self.add_output("Code already used. No effect.", instant=False)
+                            self.puzzle_manager.set_state(f"{puzzle['id']}_solved", True); self.puzzle_manager.increment_privilege()
+                            self.add_output("Override code accepted. Privilege level increased."); self.success_sound.play()
+                        else: self.add_output("Code already used. No effect.")
                         break
-                if not found_puzzle: self.add_output("ERROR: Invalid override code.", instant=False)
-            else:
-                self.add_output("Usage: override <CODE>", instant=False)
-        elif command == "ls":
-            if self.files:
-                self.add_output(" ".join(self.files.keys()), instant=False)
-            else:
-                self.add_output("No files found.", instant=False)
+                if not found: self.add_output("ERROR: Invalid override code."); self.error_sound.play()
+            else: self.add_output("Usage: override <CODE>"); self.error_sound.play()
+        elif command == "ls": self.add_output(" ".join(self.files.keys()) if self.files else "No files found.")
         elif command == "cat":
             if len(parts) > 1:
                 filename = parts[1]
-                if filename in self.files:
+                if filename in self.files: self.add_output(self.files[filename], instant=True)
+                else: self.add_output(f"ERROR: File not found: '{filename}'"); self.error_sound.play()
+            else: self.add_output("Usage: cat <filename>"); self.error_sound.play()
+        elif command == "exit": self.transition_state = "out"
+        else: self.add_output(f"Command not recognized: '{command}'."); self.error_sound.play()
 
-                    max_width = SCREEN_WIDTH - 40
-                    wrapped_text = []
-                    for line in self.files[filename].split('\n'):
-                        wrapped_lines = self._wrap_text(line, TERMINAL_FONT, max_width)
-                        wrapped_text.extend(wrapped_lines)
-                    self.add_output("\n".join(wrapped_text), instant=True)
-                else:
-                    self.add_output(f"ERROR: File not found: '{filename}'", instant=False)
-            else:
-                self.add_output("Usage: cat <filename>", instant=False)
-        elif command == "exit":
-            self.state_manager.set_state("GAME")
-        else:
-            self.add_output(f"Command not recognized: '{command}'. Type 'help'.", instant=False)
+    def finish_typewriter(self):
+        self.output_lines.extend(self.typewriter_effect["lines"]); self.typewriter_effect["lines"] = []
 
     def update(self):
-        self.cursor_timer = (self.cursor_timer + 1) % FPS
-        self.cursor_visible = self.cursor_timer < FPS // 2
+        if self.transition_state == 'in':
+            self.transition_alpha = max(0, self.transition_alpha - 15)
+            if self.transition_alpha == 0: self.transition_state = 'active'
+        elif self.transition_state == 'out':
+            self.transition_alpha = min(255, self.transition_alpha + 15)
+            if self.transition_alpha == 255: self.state_manager.set_state("GAME")
+        if self.transition_state != 'active': return
+        self.cursor_timer = (self.cursor_timer + 1) % FPS; self.cursor_visible = self.cursor_timer < FPS // 2
         if self.typewriter_effect["lines"]:
             effect = self.typewriter_effect
-            elapsed_lines = int((time.time() - effect["start_time"]) * 4)
-            if elapsed_lines > len(self.output_lines):
-                if effect["lines"]:
-                    next_line = effect["lines"].pop(0)
-                    self.output_lines.append(TERMINAL_FONT.render(next_line, True, GREEN))
-            if not effect["lines"]:
-                self.typewriter_effect["lines"] = []
-        elif self.typewriter_effect["text"]:
-            effect = self.typewriter_effect
-            elapsed = (time.time() - effect["start_time"]) * 30
-            new_pos = min(len(effect["text"]), int(elapsed))
-            if new_pos > effect["pos"]:
-                effect["pos"] = new_pos
-                rendered_text = TERMINAL_FONT.render(effect["text"][:effect["pos"]], True, GREEN)
-                effect["surf"].fill((0, 0, 0, 0))
-                effect["surf"].blit(rendered_text, (0, 0))
-            if effect["pos"] >= len(effect["text"]): self.typewriter_effect["text"] = ""
+            if (time.time() - effect["start_time"]) * 10 > len(self.output_lines) - (len(effect["lines"])):
+                if effect["lines"]: self.output_lines.append(effect["lines"].pop(0))
+
+    def render_text_glow(self, text, color, pos, surface):
+        text_surf = TERMINAL_FONT.render(text, True, color)
+        blur_surf = TERMINAL_FONT.render(text, True, tuple(c*0.5 for c in color))
+        blur_surf.set_alpha(100)
+        surface.blit(blur_surf, (pos[0]+1, pos[1]+1)); surface.blit(blur_surf, (pos[0]-1, pos[1]-1))
+        surface.blit(text_surf, pos)
 
     def draw(self, surface):
         surface.fill(BLACK)
-        for y in range(0, SCREEN_HEIGHT, 4): pygame.draw.line(surface, (0, 15, 0), (0, y), (SCREEN_WIDTH, y))
-        y_pos = 20
-        max_lines = (SCREEN_HEIGHT - 50) // (TERMINAL_FONT.get_height() + 5)
+        for y in range(0, SCREEN_HEIGHT, 4): pygame.draw.line(surface, DARK_GREEN, (0, y), (SCREEN_WIDTH, y))
+        y_pos, max_lines = 20, (SCREEN_HEIGHT - 60) // (TERMINAL_FONT.get_height() + 5)
         start_index = max(0, len(self.output_lines) - max_lines)
-        for line_surf in self.output_lines[start_index:]:
-            if line_surf: surface.blit(line_surf, (20, y_pos)); y_pos += TERMINAL_FONT.get_height() + 5
-        if not (self.typewriter_effect["text"] or self.typewriter_effect["lines"]):
-            prompt_surf = TERMINAL_FONT.render(f"> {self.input_text}", True, GREEN)
-            surface.blit(prompt_surf, (20, y_pos))
+        for line_text in self.output_lines[start_index:]:
+            self.render_text_glow(line_text, GREEN, (20, y_pos), surface)
+            y_pos += TERMINAL_FONT.get_height() + 5
+        if not self.typewriter_effect["lines"]:
+            prompt_text = f"> {self.input_text}"
+            self.render_text_glow(prompt_text, GREEN, (20, y_pos), surface)
             if self.cursor_visible:
-                cursor_x = 20 + prompt_surf.get_width()
-                cursor_rect = pygame.Rect(cursor_x + 2, y_pos, 10, TERMINAL_FONT.get_height())
-                pygame.draw.rect(surface, GREEN, cursor_rect)
+                cursor_x = 20 + TERMINAL_FONT.size(prompt_text)[0]
+                pygame.draw.rect(surface, GREEN, pygame.Rect(cursor_x + 2, y_pos, 10, TERMINAL_FONT.get_height()))
+        if self.transition_alpha > 0:
+            fade_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)); fade_surf.fill(BLACK); fade_surf.set_alpha(self.transition_alpha)
+            surface.blit(fade_surf, (0, 0))
 
 
-class WinState(BaseState):
-    def __init__(self):
-        super().__init__()
-        self.win_text = MESSAGE_FONT.render("You escaped the glitch.", True, BRIGHT_GREEN)
-        self.win_rect = self.win_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-
-    def draw(self, surface): surface.fill(BLACK); surface.blit(self.win_text, self.win_rect)
-
-
-class CutsceneState(BaseState):
-    def __init__(self, state_manager, video_path, next_state):
-        super().__init__()
-        self.state_manager = state_manager
-        self.video_path = video_path
-        self.next_state = next_state
-        self.clip = None
-        self.start_time = 0
-        self.finished = False
-        self.load_error = False
-        self.prompt_font = pygame.font.SysFont("Consolas", 22)
-        self.error_font = pygame.font.SysFont("Consolas", 28)
-        self.skip_text = self.prompt_font.render("Press [ESC] or [SPACE] to skip", True, WHITE)
-        self.skip_rect = self.skip_text.get_rect(bottomright=(SCREEN_WIDTH - 20, SCREEN_HEIGHT - 20))
-        self.error_msg_1 = self.error_font.render("Video file could not be loaded.", True, RED)
-        self.error_msg_2 = self.prompt_font.render("Press any key to continue.", True, WHITE)
-        self.error_rect_1 = self.error_msg_1.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
-        self.error_rect_2 = self.error_msg_2.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20))
-
-    def on_enter(self):
-        self.finished = False
-        self.load_error = False
-        try:
-            self.clip = VideoFileClip(self.video_path)
-            self.clip = self.clip.resize((SCREEN_WIDTH, SCREEN_HEIGHT))
-            self.start_time = pygame.time.get_ticks()
-            if self.clip.audio:
-                self.clip.audio.preview(fps=44100)
-        except Exception as e:
-            print(f"FATAL: Could not load video '{self.video_path}'. Error: {e}")
-            self.load_error = True
-            self.clip = None
-
-    def on_exit(self):
-        if self.clip:
-            if self.clip.audio:
-                pygame.mixer.quit()
-                pygame.mixer.init()
-            self.clip.close()
-
-    def handle_events(self, events):
-        for event in events:
-            if event.type == pygame.KEYDOWN:
-                if self.load_error:
-                    self.state_manager.set_state(self.next_state)
-                    return
-                if event.key in [pygame.K_ESCAPE, pygame.K_SPACE]:
-                    self.finished = True
-
-    def update(self):
-        if self.load_error: return
-        if self.finished:
-            self.state_manager.set_state(self.next_state)
-            return
-        if self.clip:
-            current_video_time = (pygame.time.get_ticks() - self.start_time) / 1000.0
-            if current_video_time >= self.clip.duration:
-                self.finished = True
-
-    def draw(self, surface):
-        surface.fill(BLACK)
-        if self.load_error:
-            surface.blit(self.error_msg_1, self.error_rect_1)
-            surface.blit(self.error_msg_2, self.error_rect_2)
-            return
-        if self.clip and not self.finished:
-            current_video_time = (pygame.time.get_ticks() - self.start_time) / 1000.0
-            if current_video_time < self.clip.duration:
-                try:
-                    frame = self.clip.get_frame(current_video_time)
-                    frame_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-                    surface.blit(frame_surface, (0, 0))
-                except Exception as e:
-                    print(f"Error rendering video frame: {e}")
-                    self.finished = True
-            surface.blit(self.skip_text, self.skip_rect)
-
+### REMOVED ### The entire CutsceneState class is gone.
 
 class MenuState(BaseState):
     def __init__(self, state_manager, level_manager):
         super().__init__()
-        self.state_manager = state_manager
-        self.level_manager = level_manager
+        self.state_manager, self.level_manager = state_manager, level_manager
         self.title_text = TITLE_FONT.render("CET GLITCH", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
-        self.button_texts = ["Start Game", "Instructions", "GitHub", "Quit"]
-        self.buttons = {}
-        self.github_url = "https://github.com/rohankishore/"
+        self.button_texts, self.buttons, self.github_url = ["Start Game", "Instructions", "GitHub", "Quit"], {}, "https://github.com/rohankishore/"
+        self.glitch_timer, self.glitch_offset = 0, (0, 0)
+        self.music = assets.get_sound("menu_music")
         y_pos = 300
         for text in self.button_texts:
-            text_surf = BUTTON_FONT.render(text, True, WHITE)
-            text_rect = text_surf.get_rect(center=(SCREEN_WIDTH // 2, y_pos))
-            self.buttons[text] = text_rect
-            y_pos += 80
-        self.background_image = None
-        try:
-            raw_image = pygame.image.load("assets/cet.png").convert()
-            self.background_image = pygame.transform.scale(raw_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        except pygame.error as e:
-            print(f"Warning: Could not load background image 'assets/cet.png': {e}")
+            rect = BUTTON_FONT.render(text, True, WHITE).get_rect(center=(SCREEN_WIDTH // 2, y_pos))
+            self.buttons[text] = rect; y_pos += 80
+        raw_bg = assets.get_image("background")
+        self.background_image = pygame.transform.scale(raw_bg, (SCREEN_WIDTH, SCREEN_HEIGHT)) if raw_bg else None
+
+    def on_enter(self):
+        if self.music: self.music.play(loops=-1, fade_ms=1000)
+
+    def on_exit(self):
+        if self.music: self.music.fadeout(500)
 
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for text, rect in self.buttons.items():
-                    if rect.collidepoint(event.pos):
-                        self.handle_button_click(text)
+                    if rect.collidepoint(event.pos): self.handle_button_click(text)
             if event.type == pygame.KEYDOWN:
-
-                level_keys = {
-                    pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2,
-                    pygame.K_4: 3, pygame.K_5: 4
-                }
-                if event.key in level_keys:
-                    level_index = level_keys[event.key]
-                    print(f"DEBUG: Key '{event.key - pygame.K_0}' pressed. Loading Level {level_index + 1}.")
-                    self.level_manager.load_specific_level(level_index)
+                level_keys = {pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2, pygame.K_4: 3, pygame.K_5: 4}
+                if event.key in level_keys: self.level_manager.load_specific_level(level_keys[event.key])
 
     def handle_button_click(self, text):
-        if text == "Start Game":
-            self.level_manager.start_new_game()
-        elif text == "Instructions":
-            self.state_manager.set_state("INSTRUCTIONS")
-        elif text == "GitHub":
-            try:
-                webbrowser.open(self.github_url)
-            except Exception as e:
-                print(f"Could not open GitHub URL: {e}")
-        elif text == "Quit":
-            pygame.event.post(pygame.event.Event(pygame.QUIT))
+        ### MODIFIED ### Changed from set_state("INTRO") to start_new_game()
+        if text == "Start Game": self.level_manager.start_new_game()
+        elif text == "Instructions": self.state_manager.set_state("INSTRUCTIONS")
+        elif text == "GitHub": webbrowser.open(self.github_url)
+        elif text == "Quit": pygame.event.post(pygame.event.Event(pygame.QUIT))
+
+    def update(self):
+        self.glitch_timer += 1
+        if self.glitch_timer % 10 == 0: self.glitch_offset = (random.randint(-4, 4), random.randint(-4, 4))
+        if self.glitch_timer > 60 and random.random() < 0.95: self.glitch_offset = (0, 0)
+        if self.glitch_timer > 120: self.glitch_timer = 0
 
     def draw(self, surface):
-        if self.background_image:
-            surface.blit(self.background_image, (0, 0))
-        else:
-            surface.fill(BLACK)
-        surface.blit(self.title_text, self.title_rect)
-        mouse_pos = pygame.mouse.get_pos()
+        if self.background_image: surface.blit(self.background_image, (0, 0))
+        else: surface.fill(BLACK)
+        title_pos = (self.title_rect.x + self.glitch_offset[0], self.title_rect.y + self.glitch_offset[1])
+        surface.blit(self.title_text, title_pos)
         for text, rect in self.buttons.items():
-            color = AMBER if rect.collidepoint(mouse_pos) else WHITE
-            text_surf = BUTTON_FONT.render(text, True, color)
-            surface.blit(text_surf, rect)
+            color = AMBER if rect.collidepoint(pygame.mouse.get_pos()) else WHITE
+            surface.blit(BUTTON_FONT.render(text, True, color), rect)
 
 
 class InstructionsState(BaseState):
@@ -930,227 +775,141 @@ class InstructionsState(BaseState):
         self.state_manager = state_manager
         self.title_text = BUTTON_FONT.render("How to Play", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 80))
-        self.back_button_rect = BUTTON_FONT.render("[ Back ]", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 80))
-        instructions = [
-            "Goal: You are trapped in a glitched reality. Find and solve puzzles to gain privileges",
-            "and unlock the final door to escape.",
-            "",
-            "Controls:",
-            "  [W, A, S, D] or [Arrow Keys] - Move your character.",
-            "  [E] - Interact with objects when a prompt appears.",
-            "  [M] - Toggle the mini-map.",
-            "  [ESC] - Exit the Terminal or go back from this page.",
-            "",
-            "Gameplay:",
-            " - Explore the environment to find interactive objects like terminals and power cables.",
-            " - Some objects require power. Find the backup generator first!",
-            " - Solve riddles on 'Puzzle Terminals' to get override codes.",
-            " - Access the main 'Terminal' to use codes and unlock the door.",
-        ]
-        self.rendered_lines = []
-        y_pos = 160
-        for line in instructions:
-            line_surf = UI_FONT.render(line, True, WHITE)
-            line_rect = line_surf.get_rect(x=100, y=y_pos)
-            self.rendered_lines.append((line_surf, line_rect))
-            y_pos += 30
+        self.back_button_rect = BUTTON_FONT.render("[ Back ]", True, WHITE).get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 80))
+        instructions = ["Goal: You are trapped in a glitched reality. Find and solve puzzles to gain privileges", "and unlock the final door to escape.", "", "Controls:", "  [W, A, S, D] or [Arrow Keys] - Move your character.", "  [E] - Interact with objects when a prompt appears.", "  [M] - Toggle the mini-map.", "  [ESC] - Exit the Terminal or go back from this page.", "", "Gameplay:", " - Explore the environment to find interactive objects like terminals and power cables.", " - Some objects require power. Find the backup generator first!", " - Solve riddles on 'Puzzle Terminals' to get override codes.", " - Access the main 'Terminal' to use codes and unlock the door."]
+        self.rendered_lines = [(UI_FONT.render(line, True, WHITE), UI_FONT.render(line, True, WHITE).get_rect(x=100, y=160 + i*30)) for i, line in enumerate(instructions)]
+
+    def handle_events(self, events):
+        for event in events:
+            if (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or \
+               (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.back_button_rect.collidepoint(event.pos)):
+                self.state_manager.set_state("MENU")
+
+    def draw(self, surface):
+        surface.fill(BLACK)
+        surface.blit(self.title_text, self.title_rect)
+        for surf, rect in self.rendered_lines: surface.blit(surf, rect)
+        color = AMBER if self.back_button_rect.collidepoint(pygame.mouse.get_pos()) else WHITE
+        surface.blit(BUTTON_FONT.render("[ Back ]", True, color), self.back_button_rect)
+
+
+### NEW ### A simple WinState for the end of the game
+class WinState(BaseState):
+    def __init__(self):
+        super().__init__()
+        self.win_text = MESSAGE_FONT.render("You Escaped The Glitch.", True, BRIGHT_GREEN)
+        self.win_rect = self.win_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        self.prompt_text = UI_FONT.render("Press ESC to return to the menu.", True, WHITE)
+        self.prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50))
+        self.state_manager = None # Will be set in main
 
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.state_manager.set_state("MENU")
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if self.back_button_rect.collidepoint(event.pos):
-                    self.state_manager.set_state("MENU")
 
     def draw(self, surface):
         surface.fill(BLACK)
-        surface.blit(self.title_text, self.title_rect)
-        for surf, rect in self.rendered_lines:
-            surface.blit(surf, rect)
-        mouse_pos = pygame.mouse.get_pos()
-        color = AMBER if self.back_button_rect.collidepoint(mouse_pos) else WHITE
-        back_text = BUTTON_FONT.render("[ Back ]", True, color)
-        surface.blit(back_text, self.back_button_rect)
+        surface.blit(self.win_text, self.win_rect)
+        surface.blit(self.prompt_text, self.prompt_rect)
 
 
+# --- Level Data -----------------------------------------------------------------
 level_1_data = {
     "player": {"start_pos": (600, 400)},
-    "walls": [(0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
-              (0, SCREEN_HEIGHT - 10, SCREEN_WIDTH, 10)],
+    "walls": [(0, 0, 1280, 10), (0, 0, 10, 720), (1270, 0, 10, 720), (0, 710, 1280, 10)],
     "objects": [
-        {"type": "Terminal", "x": 100, "y": 100, "w": 120, "h": 120, "image": "assets/terminal.png"},
-        {"type": "PowerCable", "x": 400, "y": SCREEN_HEIGHT - 120, "w": 200, "h": 90, "image": "assets/cables.png"},
-        {"type": "Door", "x": SCREEN_WIDTH - 150, "y": 280, "w": 80, "h": 180, "image_locked": "assets/door_locked.png",
-         "image_unlocked": "assets/door_unlocked.png"},
-        {"type": "PuzzleTerminal", "x": 50, "y": 600, "w": 90, "h": 70, "name": "Canteen", "puzzle_key": "p1",
-         "image": "assets/puzzle_terminal_1.png"},
-        {"type": "PuzzleTerminal", "x": SCREEN_WIDTH - 200, "y": 100, "w": 80, "h": 120, "name": "CS Dept. Server",
-         "puzzle_key": "p2", "image": "assets/puzzle_terminal_2.png"},
-        {"type": "PuzzleTerminal", "x": 800, "y": 50, "w": 130, "h": 90, "name": "Wall Panel", "puzzle_key": "p3",
-         "image": "assets/puzzle_terminal_3.png"},
+        {"type": "Terminal", "x": 100, "y": 100, "w": 120, "h": 120, "image_key": "terminal"},
+        {"type": "PowerCable", "x": 400, "y": 600, "w": 200, "h": 90, "image_key": "cables"},
+        {"type": "Door", "x": 1130, "y": 280, "w": 80, "h": 180, "image_locked_key": "door_locked", "image_unlocked_key": "door_unlocked"},
+        {"type": "PuzzleTerminal", "x": 50, "y": 600, "w": 90, "h": 70, "name": "Canteen", "puzzle_key": "p1", "image_key": "puzzle_terminal_1"},
+        {"type": "PuzzleTerminal", "x": 1080, "y": 100, "w": 80, "h": 120, "name": "CS Dept. Server", "puzzle_key": "p2", "image_key": "puzzle_terminal_2"},
+        {"type": "PuzzleTerminal", "x": 800, "y": 50, "w": 130, "h": 90, "name": "Wall Panel", "puzzle_key": "p3", "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
         "p1": {"id": "chai_riddle", "question": "What is the price of one chai at the Canteen?", "answer": "7"},
         "p2": {"id": "sgpa_riddle", "question": "The place where there are swings in the campus", "answer": "gazebo"},
-        "p3": {"id": "landmark_riddle",
-               "question": "I stand tall and circular, a hub of knowledge and late-night study sessions. What am I?",
-               "answer": "library"}
+        "p3": {"id": "landmark_riddle", "question": "I stand tall and circular, a hub of knowledge and late-night study sessions. What am I?", "answer": "library"}
     }
 }
-
 level_2_data = {
     "player": {"start_pos": (100, 100)},
-    "walls": [(0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
-              (0, SCREEN_HEIGHT - 10, SCREEN_WIDTH, 10), (300, 0, 10, 400), (600, 300, 10, 420)],
+    "walls": [(0, 0, 1280, 10), (0, 0, 10, 720), (1270, 0, 10, 720), (0, 710, 1280, 10), (300, 0, 10, 400), (600, 300, 10, 420)],
     "objects": [
-        {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image": "assets/terminal.png"},
-        {"type": "PowerCable", "x": 50, "y": 600, "w": 200, "h": 90, "image": "assets/cables.png"},
-        {"type": "Door", "x": 1200, "y": 50, "w": 80, "h": 180, "image_locked": "assets/door_locked.png",
-         "image_unlocked": "assets/door_unlocked.png"},
-        {"type": "PuzzleTerminal", "x": 400, "y": 50, "w": 80, "h": 120, "name": "Old Mainframe", "puzzle_key": "p1",
-         "image": "assets/puzzle_terminal_2.png"},
-        {"type": "PuzzleTerminal", "x": 400, "y": 600, "w": 130, "h": 90, "name": "Network Switch", "puzzle_key": "p2",
-         "image": "assets/puzzle_terminal_3.png"},
-        {"type": "PuzzleTerminal", "x": 700, "y": 350, "w": 90, "h": 70, "name": "Corrupted Log", "puzzle_key": "p3",
-         "image": "assets/puzzle_terminal_1.png"},
+        {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image_key": "terminal"},
+        {"type": "PowerCable", "x": 50, "y": 600, "w": 200, "h": 90, "image_key": "cables"},
+        {"type": "Door", "x": 1200, "y": 50, "w": 80, "h": 180, "image_locked_key": "door_locked", "image_unlocked_key": "door_unlocked"},
+        {"type": "PuzzleTerminal", "x": 400, "y": 50, "w": 80, "h": 120, "name": "Old Mainframe", "puzzle_key": "p1", "image_key": "puzzle_terminal_2"},
+        {"type": "PuzzleTerminal", "x": 400, "y": 600, "w": 130, "h": 90, "name": "Network Switch", "puzzle_key": "p2", "image_key": "puzzle_terminal_3"},
+        {"type": "PuzzleTerminal", "x": 700, "y": 350, "w": 90, "h": 70, "name": "Corrupted Log", "puzzle_key": "p3", "image_key": "puzzle_terminal_1"},
     ],
     "puzzles": {
         "p1": {"id": "chai_riddle", "question": "How many departments are in CET?", "answer": "9"},
         "p2": {"id": "sgpa_riddle", "question": "What year was CET established?", "answer": "1987"},
-        "p3": {"id": "landmark_riddle",
-               "question": "I am a college festival of lights, sounds, and celebration. What am I?", "answer": "dyuthi"}
+        "p3": {"id": "landmark_riddle", "question": "I am a college festival of lights, sounds, and celebration. What am I?", "answer": "dyuthi"}
     }
 }
-
 level_3_data = {
-    "player": {"start_pos": (100, SCREEN_HEIGHT / 2)},
-    "walls": [
-        (0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
-        (0, SCREEN_HEIGHT - 10, SCREEN_WIDTH, 10),
-        (200, 0, 10, 250), (200, 350, 10, 370), (400, 100, 10, SCREEN_HEIGHT - 110),
-        (600, 0, 10, 500), (800, 200, 10, 520), (1000, 0, 10, 300), (1000, 400, 10, 320),
-    ],
+    "player": {"start_pos": (100, 360)},
+    "walls": [(0, 0, 1280, 10), (0, 0, 10, 720), (1270, 0, 10, 720), (0, 710, 1280, 10), (200, 0, 10, 250), (200, 350, 10, 370), (400, 100, 10, 610), (600, 0, 10, 500), (800, 200, 10, 520), (1000, 0, 10, 300), (1000, 400, 10, 320)],
     "objects": [
-        {"type": "PowerCable", "x": 50, "y": 50, "w": 200, "h": 90, "image": "assets/cables.png"},
-        {"type": "Door", "x": 1150, "y": 310, "w": 80, "h": 180, "image_locked": "assets/door_locked.png",
-         "image_unlocked": "assets/door_unlocked.png"},
-        {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image": "assets/terminal.png"},
-        {"type": "NoticeBoard", "x": 250, "y": 300, "w": 100, "h": 80,
-         "message": "REMINDER: Security override passwords must be themed. This cycle's theme: 'Campus Life'.",
-         "image": "assets/notice.png"},
-        {"type": "CorruptedDataLog", "x": 850, "y": 100, "w": 90, "h": 70,
-         "message": "LOG ENTRY ...-34B: Access code for ... is the acr...m for the p...nt uni...sity.",
-         "image": "assets/data_log.png"},
-        {"type": "PuzzleTerminal", "x": 450, "y": 50, "w": 80, "h": 120, "name": "Event Planner", "puzzle_key": "p1",
-         "image": "assets/puzzle_terminal_2.png"},
-        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Architect's Draft",
-         "puzzle_key": "p2", "image": "assets/puzzle_terminal_1.png"},
-        {"type": "PuzzleTerminal", "x": 1100, "y": 50, "w": 130, "h": 90, "name": "University Link", "puzzle_key": "p3",
-         "image": "assets/puzzle_terminal_3.png"},
+        {"type": "PowerCable", "x": 50, "y": 50, "w": 200, "h": 90, "image_key": "cables"},
+        {"type": "Door", "x": 1150, "y": 310, "w": 80, "h": 180, "image_locked_key": "door_locked", "image_unlocked_key": "door_unlocked"},
+        {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image_key": "terminal"},
+        {"type": "NoticeBoard", "x": 250, "y": 300, "w": 100, "h": 80, "message": "REMINDER: Security override passwords must be themed. This cycle's theme: 'Campus Life'.", "image_key": "notice"},
+        {"type": "CorruptedDataLog", "x": 850, "y": 100, "w": 90, "h": 70, "message": "LOG ENTRY ...-34B: Access code for ... is the acr...m for the p...nt uni...sity.", "image_key": "data_log"},
+        {"type": "PuzzleTerminal", "x": 450, "y": 50, "w": 80, "h": 120, "name": "Event Planner", "puzzle_key": "p1", "image_key": "puzzle_terminal_2"},
+        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Architect's Draft", "puzzle_key": "p2", "image_key": "puzzle_terminal_1"},
+        {"type": "PuzzleTerminal", "x": 1100, "y": 50, "w": 130, "h": 90, "name": "University Link", "puzzle_key": "p3", "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle",
-               "question": "The annual celebration of arts and culture, a vibrant melody in our college life. What is its name?",
-               "answer": "dhwani"},
-        "p2": {"id": "sgpa_riddle",
-               "question": "Where actors perform under the stars, and memories are made on stone steps.",
-               "answer": "oat"},
-        "p3": {"id": "landmark_riddle", "question": "What is the three-letter acronym for our parent university?",
-               "answer": "ktu"}
+        "p1": {"id": "chai_riddle", "question": "The annual celebration of arts and culture, a vibrant melody in our college life. What is its name?", "answer": "dhwani"},
+        "p2": {"id": "sgpa_riddle", "question": "Where actors perform under the stars, and memories are made on stone steps.", "answer": "oat"},
+        "p3": {"id": "landmark_riddle", "question": "What is the three-letter acronym for our parent university?", "answer": "ktu"}
     },
-    "terminal_files": {
-        "security_log.txt": "SECURITY ALERT: Unauthorized access attempts detected. Multiple uses of the 'override' command with invalid codes. System integrity is compromised. All personnel should be vigilant.",
-        "note_to_self.txt": "My password is so easy to remember. It's just the name of that arts fest... the one with all the music. What was it again? Starts with a D..."
-    }
+    "terminal_files": {"security_log.txt": "SECURITY ALERT: Unauthorized access attempts detected.", "note_to_self.txt": "My password is the name of that arts fest... What was it again? Starts with a D..."}
 }
-
 level_4_data = {
     "player": {"start_pos": (60, 60)},
-    "walls": [
-        (0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
-        (0, SCREEN_HEIGHT - 10, SCREEN_WIDTH, 10),
-
-        (150, 10, 10, 500), (300, 200, 10, 510), (450, 10, 10, 500),
-        (600, 200, 10, 510), (750, 10, 10, 500), (900, 200, 10, 510),
-        (1050, 10, 10, 500), (220, 150, 900, 10)
-    ],
+    "walls": [(0, 0, 1280, 10), (0, 0, 10, 720), (1270, 0, 10, 720), (0, 710, 1280, 10), (150, 10, 10, 500), (300, 200, 10, 510), (450, 10, 10, 500), (600, 200, 10, 510), (750, 10, 10, 500), (900, 200, 10, 510), (1050, 10, 10, 500), (220, 150, 900, 10)],
     "objects": [
-        {"type": "PowerCable", "x": 200, "y": 600, "w": 200, "h": 90, "image": "assets/cables.png"},
-        {"type": "Door", "x": 1150, "y": 50, "w": 80, "h": 180, "image_locked": "assets/door_locked.png",
-         "image_unlocked": "assets/door_unlocked.png"},
-        {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image": "assets/terminal.png"},
-        {"type": "NoticeBoard", "x": 500, "y": 350, "w": 100, "h": 80,
-         "message": "The numbers are the key. The key is the sequence. Do not deviate from the path.",
-         "image": "assets/notice.png"},
-
-        {"type": "PuzzleTerminal", "x": 200, "y": 50, "w": 80, "h": 120, "name": "Data Node Alpha", "puzzle_key": "p1",
-         "image": "assets/puzzle_terminal_2.png"},
-        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Logic Gate Beta", "puzzle_key": "p2",
-         "image": "assets/puzzle_terminal_1.png"},
-        {"type": "PuzzleTerminal", "x": 1150, "y": 300, "w": 130, "h": 90, "name": "I/O Port Gamma", "puzzle_key": "p3",
-         "image": "assets/puzzle_terminal_3.png"},
+        {"type": "PowerCable", "x": 200, "y": 600, "w": 200, "h": 90, "image_key": "cables"},
+        {"type": "Door", "x": 1150, "y": 50, "w": 80, "h": 180, "image_locked_key": "door_locked", "image_unlocked_key": "door_unlocked"},
+        {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image_key": "terminal"},
+        {"type": "NoticeBoard", "x": 500, "y": 350, "w": 100, "h": 80, "message": "The numbers are the key. The key is the sequence.", "image_key": "notice"},
+        {"type": "PuzzleTerminal", "x": 200, "y": 50, "w": 80, "h": 120, "name": "Data Node Alpha", "puzzle_key": "p1", "image_key": "puzzle_terminal_2"},
+        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Logic Gate Beta", "puzzle_key": "p2", "image_key": "puzzle_terminal_1"},
+        {"type": "PuzzleTerminal", "x": 1150, "y": 300, "w": 130, "h": 90, "name": "I/O Port Gamma", "puzzle_key": "p3", "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "The first step in any sequence. The loneliest number. The start.",
-               "answer": "1"},
-        "p2": {"id": "sgpa_riddle", "question": "Two paths diverge. One true, one false. The core of all decisions.",
-               "answer": "2"},
-        "p3": {"id": "landmark_riddle",
-               "question": "Three points define a plane. The trinity of logic. The end of the beginning.",
-               "answer": "3"}
+        "p1": {"id": "chai_riddle", "question": "The first step. The loneliest number. The start.", "answer": "1"},
+        "p2": {"id": "sgpa_riddle", "question": "Two paths diverge. The core of all decisions.", "answer": "2"},
+        "p3": {"id": "landmark_riddle", "question": "Three points define a plane. The end of the beginning.", "answer": "3"}
     },
-    "terminal_files": {
-        "memory_dump.log": "0x00A1... 0xFFE4... 0xDEAD... 0xBEEF... 0x1A4F... IT SEES ME ...0x0000... 0x0000... 0xC0DE... 0xBAD1..."
-    }
+    "terminal_files": {"memory_dump.log": "0xDEAD... 0xBEEF... IT SEES ME ...0xC0DE... 0xBAD1..."}
 }
-
 level_5_data = {
-    "player": {"start_pos": (60, SCREEN_HEIGHT / 2)},
-    "walls": [
-        (0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
-        (0, SCREEN_HEIGHT - 10, SCREEN_WIDTH, 10),
-
-        (400, 200, 480, 10), (400, 500, 480, 10),
-        (400, 200, 10, 310), (880, 200, 10, 150), (880, 400, 10, 110)
-    ],
+    "player": {"start_pos": (60, 360)},
+    "walls": [(0, 0, 1280, 10), (0, 0, 10, 720), (1270, 0, 10, 720), (0, 710, 1280, 10), (400, 200, 480, 10), (400, 500, 480, 10), (400, 200, 10, 310), (880, 200, 10, 150), (880, 400, 10, 110)],
     "objects": [
-        {"type": "PowerCable", "x": 1100, "y": 600, "w": 200, "h": 90, "image": "assets/cables.png"},
-
-        {"type": "Door", "x": 800, "y": 280, "w": 80, "h": 180, "image_locked": "assets/door_locked.png",
-         "image_unlocked": "assets/door_unlocked.png"},
-
-        {"type": "Terminal", "x": 450, "y": 300, "w": 120, "h": 120, "image": "assets/terminal.png"},
-        {"type": "CorruptedDataLog", "x": 50, "y": 50, "w": 90, "h": 70,
-         "message": "They aren't puzzles... they are authentication nodes. My access level keeps resetting. Why? Who is resetting it?",
-         "image": "assets/data_log.png"},
-
-        {"type": "PuzzleTerminal", "x": 200, "y": 100, "w": 80, "h": 120, "name": "Monitor Station 1",
-         "puzzle_key": "p1",
-         "image": "assets/puzzle_terminal_2.png"},
-        {"type": "PuzzleTerminal", "x": 640, "y": 600, "w": 90, "h": 70, "name": "Monitor Station 2",
-         "puzzle_key": "p2",
-         "image": "assets/puzzle_terminal_1.png"},
-        {"type": "PuzzleTerminal", "x": 1100, "y": 100, "w": 130, "h": 90, "name": "Monitor Station 3",
-         "puzzle_key": "p3",
-         "image": "assets/puzzle_terminal_3.png"},
+        {"type": "PowerCable", "x": 1100, "y": 600, "w": 200, "h": 90, "image_key": "cables"},
+        {"type": "Door", "x": 800, "y": 280, "w": 80, "h": 180, "image_locked_key": "door_locked", "image_unlocked_key": "door_unlocked"},
+        {"type": "Terminal", "x": 450, "y": 300, "w": 120, "h": 120, "image_key": "terminal"},
+        {"type": "CorruptedDataLog", "x": 50, "y": 50, "w": 90, "h": 70, "message": "They aren't puzzles... they are authentication nodes. My access level keeps resetting. Why?", "image_key": "data_log"},
+        {"type": "PuzzleTerminal", "x": 200, "y": 100, "w": 80, "h": 120, "name": "Monitor Station 1", "puzzle_key": "p1", "image_key": "puzzle_terminal_2"},
+        {"type": "PuzzleTerminal", "x": 640, "y": 600, "w": 90, "h": 70, "name": "Monitor Station 2", "puzzle_key": "p2", "image_key": "puzzle_terminal_1"},
+        {"type": "PuzzleTerminal", "x": 1100, "y": 100, "w": 130, "h": 90, "name": "Monitor Station 3", "puzzle_key": "p3", "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "I am always coming but never arrive. What am I?", "answer": "1"},
-        "p2": {"id": "sgpa_riddle", "question": "What is it that you can keep after giving it to someone else?",
-               "answer": "2"},
-        "p3": {"id": "landmark_riddle", "question": "What has an eye, but cannot see?", "answer": "3"}
+        "p1": {"id": "chai_riddle", "question": "I am always coming but never arrive. What am I?", "answer": "tomorrow"},
+        "p2": {"id": "sgpa_riddle", "question": "What can you keep after giving it to someone else?", "answer": "your word"},
+        "p3": {"id": "landmark_riddle", "question": "What has an eye, but cannot see?", "answer": "a needle"}
     },
-    "terminal_files": {
-        "surveillance_report.txt": "Subject deviates from expected path. Interaction with node 1 logged at timestamp 7439.88. Subject appears confused. Emotional state: Agitated. Recalibrating escape probability... 41.3%. Further observation required."
-    }
+    "terminal_files": {"surveillance_report.txt": "Subject deviates from expected path. Agitated. Recalibrating escape probability... 41.3%."}
 }
 
 
 def main():
-    pygame.init()
-    pygame.mixer.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("CET Glitch")
     clock = pygame.time.Clock()
@@ -1158,23 +917,24 @@ def main():
     game_state_manager = GameStateManager(None)
     level_manager = LevelManager(game_state_manager)
 
-    intro_cutscene = CutsceneState(game_state_manager, "assets/videos/start.mp4", "GAME")
+    ### MODIFIED ### Removed cutscene creation
     menu_state = MenuState(game_state_manager, level_manager)
     instructions_state = InstructionsState(game_state_manager)
+    win_state = WinState()
+    win_state.state_manager = game_state_manager # Give win_state access to the manager
 
     game_state_manager.add_state("MENU", menu_state)
     game_state_manager.add_state("INSTRUCTIONS", instructions_state)
-    game_state_manager.add_state("CUTSCENE", intro_cutscene)
-    game_state_manager.add_state("WIN", WinState())
+    game_state_manager.add_state("WIN", win_state)
+    ### MODIFIED ### Removed INTRO and OUTRO states
 
-    game_state_manager.set_state("MENU")
+    game_state_manager.set_state("MENU") # Start at the menu
 
     running = True
     while running:
         events = pygame.event.get()
         for event in events:
-            if event.type == pygame.QUIT:
-                running = False
+            if event.type == pygame.QUIT: running = False
 
         game_state_manager.handle_events(events)
         game_state_manager.update()
