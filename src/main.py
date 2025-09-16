@@ -37,6 +37,21 @@ BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
+### NEW HELPER FUNCTION ###
+def wrap_text(text, font, max_width):
+    """Wraps a single line of text to a given width."""
+    words = text.split(' ')
+    lines = []
+    current_line = ""
+    for word in words:
+        test_line = current_line + word + " "
+        if font.size(test_line)[0] <= max_width:
+            current_line = test_line
+        else:
+            lines.append(current_line.strip())
+            current_line = word + " "
+    lines.append(current_line.strip())
+    return lines
 
 class SettingsManager:
     # ... (This class is unchanged)
@@ -392,7 +407,7 @@ class NoticeBoard(InteractiveObject):
         self.message = message
 
     def get_interaction_message(self, puzzle_manager):
-        return "An old, dusty notice board. [E] to read."
+        return "> An old, dusty notice board. [E] to read."
 
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
@@ -404,7 +419,7 @@ class CorruptedDataLog(InteractiveObject):
         self.message = message
 
     def get_interaction_message(self, puzzle_manager):
-        return "A data log, flickering erratically. [E] to examine."
+        return "> A data log, flickering erratically. [E] to examine."
 
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 5)
@@ -418,7 +433,7 @@ class PuzzleTerminal(InteractiveObject):
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state(f"{self.puzzle_id}_solved"): return f"The {self.name} is offline."
-        return f"A flickering {self.name}. [E] to read."
+        return f"> A flickering {self.name}. [E] to read."
 
     def interact(self, game_state_manager, puzzle_manager):
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
@@ -437,7 +452,7 @@ class Door(InteractiveObject):
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state("door_unlocked"): return "The door is unlocked. [E] to leave."
-        return "It's locked. A digital keypad is dark."
+        return "> It's locked. A digital keypad is dark."
 
     def interact(self, game_state_manager, puzzle_manager):
         if puzzle_manager.get_state("door_unlocked"): game_state_manager.current_state.level_manager.next_level()
@@ -458,7 +473,7 @@ class Terminal(InteractiveObject):
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state("power_restored"): return "The terminal hums with power. [E] to access."
-        return "The screen is dead. Power seems to be out."
+        return "> The screen is dead. Power seems to be out."
 
     def interact(self, game_state_manager, puzzle_manager):
         if puzzle_manager.get_state("power_restored"):
@@ -473,7 +488,7 @@ class PowerCable(InteractiveObject):
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state("power_restored"): return "The cables are connected to the backup generator."
-        return "A tangled mess. One seems to lead to a backup generator. [E] to connect."
+        return "> A tangled mess. One seems to lead to a backup generator. [E] to connect."
 
     def interact(self, game_state_manager, puzzle_manager):
         if not puzzle_manager.get_state("power_restored"):
@@ -493,13 +508,13 @@ class StoryState(BaseState):
         super().__init__()
         self.state_manager = state_manager
         self.next_state = next_state
-        self.story_lines = [
+
+        unwrapped_lines = [
             "The last thing I remember is the smell of ozone.",
             "I was in the new Quantum AI Lab, pushing the final simulation for Project Chimera.",
             "There was a flash. A sound like tearing metal.",
             "...",
-            "Now... I'm still in the lab, but it's wrong.",
-            "The air hums. The walls flicker. This isn't real.",
+            "Now... I'm still in the lab, but it's wrong. The air hums. The walls flicker. This isn't real.",
             "I'm trapped inside. The system is unstable.",
             "A terminal message flickers:",
             "> KERNEL PANIC. SIMULATION DEGRADING.",
@@ -508,58 +523,57 @@ class StoryState(BaseState):
             "",
             "I have to get admin rights and reboot, or I'll be deleted with the rest of this collapsing reality."
         ]
-        self.skip_prompt = UI_FONT.render("Press any key to skip...", True, AMBER)
+
+        # Process lines with word wrap
+        self.story_lines = []
+        for line in unwrapped_lines:
+            self.story_lines.extend(wrap_text(line, STORY_FONT, SCREEN_WIDTH * 0.8))
+
+        self.skip_prompt = UI_FONT.render("> Press any key to speed up / skip...", True, AMBER)
         self.typing_delay = 50  # ms per character
-        self.line_pause = 750  # ms between lines
+        self.line_pause = 500  # ms between lines
 
     def on_enter(self):
         self.current_line_index = 0
         self.current_char_index = 0
         self.last_update = pygame.time.get_ticks()
-        self.state = "TYPING"  # Can be TYPING, PAUSED, DONE
+        self.state = "TYPING"  # Can be TYPING, PAUSED
 
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if self.state == "TYPING":
-                    # Pressing a key while typing finishes the current line
-                    self.current_char_index = len(self.story_lines[self.current_line_index])
-                else:
-                    # Pressing a key at any other time skips the whole story
-                    self.state_manager.set_state(self.next_state)
+                # Pressing any key now simply skips the entire story intro.
+                # This is simpler and more robust than multi-stage skipping.
+                self.state_manager.set_state(self.next_state)
 
     def update(self):
-        if self.state != "TYPING":
-            return
-
         now = pygame.time.get_ticks()
-        if now - self.last_update > self.typing_delay:
-            self.last_update = now
 
-            line_len = len(self.story_lines[self.current_line_index])
-            if self.current_char_index < line_len:
-                self.current_char_index += 1
-                # Play sound only for non-space characters
-                if self.story_lines[self.current_line_index][self.current_char_index - 1] != ' ':
-                    assets.play_sound('key_press')
-            else:
-                self.state = "PAUSED"
-                self.last_update = now  # Reset timer for pause
+        if self.state == "TYPING":
+            if now - self.last_update > self.typing_delay:
+                self.last_update = now
 
-        if self.state == "PAUSED" and now - self.last_update > self.line_pause:
-            self.current_line_index += 1
-            self.current_char_index = 0
-            if self.current_line_index >= len(self.story_lines):
-                self.state = "DONE"
-            else:
-                self.state = "TYPING"
+                line_len = len(self.story_lines[self.current_line_index])
+                if self.current_char_index < line_len:
+                    self.current_char_index += 1
+                    if self.story_lines[self.current_line_index][self.current_char_index - 1] != ' ':
+                        assets.play_sound('key_press')
+                else:  # Line finished typing
+                    self.state = "PAUSED"
+                    self.last_update = now  # Reset timer for the pause
 
-        if self.state == "DONE":
-            self.state_manager.set_state(self.next_state)
+        elif self.state == "PAUSED":
+            if now - self.last_update > self.line_pause:
+                self.current_line_index += 1
+                self.current_char_index = 0
+                if self.current_line_index >= len(self.story_lines):
+                    self.state_manager.set_state(self.next_state)
+                else:
+                    self.state = "TYPING"
 
     def draw(self, surface):
         surface.fill(BLACK)
-        y_pos = 150
+        y_pos = 100
         # Draw all completed lines
         for i in range(self.current_line_index):
             rendered_line = STORY_FONT.render(self.story_lines[i], True, WHITE)
@@ -586,16 +600,18 @@ class LevelIntroState(BaseState):
         super().__init__()
         self.state_manager = state_manager
         self.level_manager = level_manager
-        self.level_title = ""
-        self.story_text = ""
         self.typing_delay = 50
 
     def on_enter(self):
         level_index = self.level_manager.current_level_index
         self.level_title = self.level_manager.level_themes[level_index]
-        self.story_text = level_story_intros[level_index]
+        story_text = level_story_intros[level_index]
+
+        self.wrapped_story_lines = wrap_text(story_text, STORY_FONT, SCREEN_WIDTH * 0.9)
+        self.level_title_surf = LEVEL_TITLE_FONT.render(self.level_title, True, WHITE)
 
         self.char_index = 0
+        self.line_index = 0
         self.last_update = pygame.time.get_ticks()
         self.finished_typing = False
 
@@ -603,8 +619,7 @@ class LevelIntroState(BaseState):
         for event in events:
             if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
                 if not self.finished_typing:
-                    self.char_index = len(self.story_text)  # Finish typing
-                    self.finished_typing = True
+                    self.finished_typing = True  # Finish all typing
                 else:
                     self.state_manager.set_state("GAME")
 
@@ -615,26 +630,49 @@ class LevelIntroState(BaseState):
         now = pygame.time.get_ticks()
         if now - self.last_update > self.typing_delay:
             self.last_update = now
-            if self.char_index < len(self.story_text):
-                self.char_index += 1
-                if self.story_text[self.char_index - 1] != ' ':
-                    assets.play_sound('key_press')
+
+            if self.line_index < len(self.wrapped_story_lines):
+                current_line_len = len(self.wrapped_story_lines[self.line_index])
+                if self.char_index < current_line_len:
+                    self.char_index += 1
+                    if self.wrapped_story_lines[self.line_index][self.char_index - 1] != ' ':
+                        assets.play_sound('key_press')
+                else:  # Move to next line
+                    self.line_index += 1
+                    self.char_index = 0
             else:
                 self.finished_typing = True
 
     def draw(self, surface):
         surface.fill(BLACK)
-        level_title_surf = LEVEL_TITLE_FONT.render(self.level_title, True, WHITE)
-        title_rect = level_title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 50))
-        surface.blit(level_title_surf, title_rect)
+        title_rect = self.level_title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 80))
+        surface.blit(self.level_title_surf, title_rect)
 
-        story_sub_text = self.story_text[:self.char_index]
-        story_surf = STORY_FONT.render(story_sub_text, True, CYAN)
-        story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20))
-        surface.blit(story_surf, story_rect)
+        y_pos = SCREEN_HEIGHT / 2
+
+        # If we are done typing, just draw everything
+        if self.finished_typing:
+            for line in self.wrapped_story_lines:
+                story_surf = STORY_FONT.render(line, True, CYAN)
+                story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
+                surface.blit(story_surf, story_rect)
+                y_pos += 40
+        else:
+            # Draw completed lines
+            for i in range(self.line_index):
+                story_surf = STORY_FONT.render(self.wrapped_story_lines[i], True, CYAN)
+                story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
+                surface.blit(story_surf, story_rect)
+                y_pos += 40
+
+            # Draw current typing line
+            if self.line_index < len(self.wrapped_story_lines):
+                sub_text = self.wrapped_story_lines[self.line_index][:self.char_index]
+                story_surf = STORY_FONT.render(sub_text, True, CYAN)
+                story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
+                surface.blit(story_surf, story_rect)
 
 
-# ... (The rest of the classes like LevelManager, GameScene, MenuState, etc., are placed after this)
 class LevelManager:
     def __init__(self, state_manager):
         self.state_manager = state_manager
@@ -960,8 +998,8 @@ class MenuState(BaseState):
         self.state_manager, self.level_manager = state_manager, level_manager
         self.title_text = TITLE_FONT.render("CET GLITCH", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
-        self.button_texts = ["Start Game", "Instructions", "Settings", "GitHub", "Quit"]
-        self.buttons, self.github_url = {}, "https://github.com/rohankishore/"
+        self.button_texts = ["> Start Game", "> Instructions", "> Settings", "> GitHub", "> Quit"]
+        self.buttons, self.github_url = {}, "https://github.com/rohankishore/CETGlitch"
         self.glitch_timer, self.glitch_offset = 0, (0, 0)
 
         self.fade_alpha = 255
@@ -994,15 +1032,15 @@ class MenuState(BaseState):
                 if event.key in level_keys: self.level_manager.load_specific_level(level_keys[event.key])
 
     def handle_button_click(self, text):
-        if text == "Start Game":
+        if text == "> Start Game":
             self.level_manager.start_new_game()
-        elif text == "Instructions":
+        elif text == "> Instructions":
             self.state_manager.set_state("INSTRUCTIONS")
-        elif text == "Settings":
+        elif text == "> Settings":
             self.state_manager.set_state("SETTINGS")
-        elif text == "GitHub":
+        elif text == "> GitHub":
             webbrowser.open(self.github_url)
-        elif text == "Quit":
+        elif text == "> Quit":
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     def update(self):
@@ -1192,7 +1230,7 @@ class WinState(BaseState):
             "You escaped."
         ]
         self.rendered_lines = [MESSAGE_FONT.render(line, True, BRIGHT_GREEN) for line in self.lines]
-        self.prompt_text = UI_FONT.render("Press ESC to return to the menu.", True, WHITE)
+        self.prompt_text = UI_FONT.render("> Press ESC to return to the menu.", True, WHITE)
         self.state_manager = None
 
     def handle_events(self, events):
