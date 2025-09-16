@@ -64,16 +64,16 @@ class AssetManager:
         # Images
         ### REMOVED ### The player.png is no longer loaded
         # self.load_image("player", "assets/player.png")
-        self.load_image("terminal", "assets/terminal.png")
-        self.load_image("cables", "assets/cables.png")
-        self.load_image("door_locked", "assets/door_locked.png")
-        self.load_image("door_unlocked", "assets/door_unlocked.png")
-        self.load_image("puzzle_terminal_1", "assets/puzzle_terminal_1.png")
-        self.load_image("puzzle_terminal_2", "assets/puzzle_terminal_2.png")
-        self.load_image("puzzle_terminal_3", "assets/puzzle_terminal_3.png")
-        self.load_image("notice", "assets/notice.png")
-        self.load_image("data_log", "assets/data_log.png")
-        self.load_image("background", "assets/cet.png")
+        self.load_image("terminal", "assets/images/terminal.png")
+        self.load_image("cables", "assets/images/cables.png")
+        self.load_image("door_locked", "assets/images/door_locked.png")
+        self.load_image("door_unlocked", "assets/images/door_unlocked.png")
+        self.load_image("puzzle_terminal_1", "assets/images/puzzle_terminal_1.png")
+        self.load_image("puzzle_terminal_2", "assets/images/puzzle_terminal_2.png")
+        self.load_image("puzzle_terminal_3", "assets/images/puzzle_terminal_3.png")
+        self.load_image("notice", "assets/images/notice.png")
+        self.load_image("data_log", "assets/images/data_log.png")
+        self.load_image("background", "assets/images/cet.png")
 
         # Sounds
         self.load_sound("walk", "assets/audios/walk.mp3")
@@ -97,8 +97,7 @@ class AssetManager:
         return self.sounds.get(name)
 
 
-assets = AssetManager()
-
+assets = None
 
 class PopupManager:
     def __init__(self):
@@ -484,7 +483,7 @@ class GameScene(BaseState):
         super().__init__()
         self.state_manager, self.puzzle_manager, self.level_manager = state_manager, puzzle_manager, level_manager
         self.glitch_manager, self.camera, self.popup_manager = GlitchManager(), Camera(SCREEN_WIDTH, SCREEN_HEIGHT), PopupManager()
-        self.show_map = False
+        self.show_map = True
         self.player = Player(level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1])
         self.hum_sound, self.interact_sound, self.ambient_music = assets.get_sound("hum"), assets.get_sound("interact"), assets.get_sound("ambient_music")
         self.level_title = level_title
@@ -913,6 +912,9 @@ def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("CET Glitch")
     clock = pygame.time.Clock()
+
+    global assets
+    assets = AssetManager()
 
     game_state_manager = GameStateManager(None)
     level_manager = LevelManager(game_state_manager)
