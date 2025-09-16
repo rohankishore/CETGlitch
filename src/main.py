@@ -4,11 +4,9 @@ import webbrowser
 import json
 import pygame
 
-# --- Constants -----------------------------------------------------------------
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 FPS = 60
 
-# --- Colors --------------------------------------------------------------------
 BLACK = (0, 0, 0)
 DARK_PURPLE = (30, 0, 30)
 DARK_GRAY = (10, 10, 10)
@@ -23,11 +21,9 @@ MAP_GRAY = (50, 50, 50)
 MAP_WALL = (100, 100, 100)
 POPUP_BG = (20, 20, 40, 220)
 
-# --- Asset Management & Initialization -----------------------------------------
 pygame.init()
 pygame.mixer.init()
 
-# --- Fonts ---------------------------------------------------------------------
 UI_FONT = pygame.font.SysFont("Consolas", 24)
 MESSAGE_FONT = pygame.font.SysFont("Consolas", 32)
 TERMINAL_FONT = pygame.font.SysFont("Lucida Console", 20)
@@ -37,7 +33,6 @@ BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
-### NEW HELPER FUNCTION ###
 def wrap_text(text, font, max_width):
     """Wraps a single line of text to a given width."""
     words = text.split(' ')
@@ -54,7 +49,7 @@ def wrap_text(text, font, max_width):
     return lines
 
 class SettingsManager:
-    # ... (This class is unchanged)
+
     def __init__(self, filepath='settings.json'):
         self.filepath = filepath
         self.defaults = {
@@ -89,9 +84,8 @@ class SettingsManager:
         self.settings = self.defaults.copy()
         self.save_settings()
 
-
 class AssetManager:
-    # ... (This class is unchanged)
+
     def __init__(self):
         self.images = {}
         self.sounds = {}
@@ -153,13 +147,11 @@ class AssetManager:
         sound.set_volume(final_vol)
         sound.play(loops=loops, fade_ms=fade_ms)
 
-
 assets = None
 settings = None
 
-
 class PopupManager:
-    # ... (This class is unchanged)
+
     def __init__(self):
         self.popups = []
 
@@ -201,8 +193,6 @@ class PopupManager:
         for popup in self.popups:
             surface.blit(popup['surface'], popup['rect'])
 
-
-# ... (GameStateManager, BaseState, and other core classes are unchanged) ...
 class GameStateManager:
     def __init__(self, initial_state):
         self.states = {}
@@ -224,7 +214,6 @@ class GameStateManager:
 
     def draw(self, surface): self.current_state.draw(surface)
 
-
 class BaseState:
     def __init__(self): pass
 
@@ -238,7 +227,6 @@ class BaseState:
     def update(self): pass
 
     def draw(self, surface): pass
-
 
 class GlitchManager:
     def __init__(self):
@@ -268,7 +256,6 @@ class GlitchManager:
                 offset = random.randint(-20, 20)
                 surface.blit(subsurface, (offset, y))
 
-
 class Camera:
     def __init__(self, width, height):
         self.rect = pygame.Rect(0, 0, width, height)
@@ -297,7 +284,6 @@ class Camera:
                 y += random.randint(-self.shake_intensity, self.shake_intensity)
         self.rect.topleft = (x, y)
 
-
 class PuzzleManager:
     def __init__(self):
         self.state = {
@@ -316,7 +302,6 @@ class PuzzleManager:
         self.state["privilege_level"] += 1
         print(f"[PuzzleManager] Privilege level increased to: {self.state['privilege_level']}")
 
-
 class Entity(pygame.sprite.Sprite):
     def __init__(self, x, y, w, h, name="", image=None):
         super().__init__()
@@ -331,7 +316,6 @@ class Entity(pygame.sprite.Sprite):
 
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
-
 
 class Player(Entity):
     def __init__(self, x, y):
@@ -389,17 +373,14 @@ class Player(Entity):
     def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
 
-
 class Wall(Entity):
     def __init__(self, x, y, w, h):
         super().__init__(x, y, w, h, "wall")
-
 
 class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
-
 
 class NoticeBoard(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
@@ -412,7 +393,6 @@ class NoticeBoard(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
 
-
 class CorruptedDataLog(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
         super().__init__(x, y, w, h, "corrupted data log", image=image)
@@ -424,7 +404,6 @@ class CorruptedDataLog(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 5)
         game_state_manager.current_state.glitch_manager.trigger_glitch(500, 10)
-
 
 class PuzzleTerminal(InteractiveObject):
     def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image=None):
@@ -439,7 +418,6 @@ class PuzzleTerminal(InteractiveObject):
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
             game_state_manager.current_state.popup_manager.add_popup(
                 f"{self.question} The answer is the override code.", 8)
-
 
 class Door(InteractiveObject):
     def __init__(self, x, y, w, h, image_locked=None, image_unlocked=None):
@@ -466,7 +444,6 @@ class Door(InteractiveObject):
             color = BRIGHT_GREEN if is_unlocked else DARK_PURPLE
             pygame.draw.rect(surface, color, camera.apply(self.rect))
 
-
 class Terminal(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
         super().__init__(x, y, w, h, "old terminal", image=image)
@@ -480,7 +457,6 @@ class Terminal(InteractiveObject):
             game_state_manager.set_state("TERMINAL")
         else:
             game_state_manager.current_state.popup_manager.add_popup("No power to the terminal.", 2)
-
 
 class PowerCable(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
@@ -499,8 +475,6 @@ class PowerCable(InteractiveObject):
             game_state_manager.current_state.camera.start_shake(1000, 5)
             assets.play_sound("hum", loops=-1)
 
-
-### MODIFIED ### This class has been heavily updated for the typewriter effect
 class StoryState(BaseState):
     """Displays the introductory story text with a typewriter effect."""
 
@@ -524,26 +498,24 @@ class StoryState(BaseState):
             "I have to get admin rights and reboot, or I'll be deleted with the rest of this collapsing reality."
         ]
 
-        # Process lines with word wrap
         self.story_lines = []
         for line in unwrapped_lines:
             self.story_lines.extend(wrap_text(line, STORY_FONT, SCREEN_WIDTH * 0.8))
 
         self.skip_prompt = UI_FONT.render("> Press any key to speed up / skip...", True, AMBER)
-        self.typing_delay = 50  # ms per character
-        self.line_pause = 500  # ms between lines
+        self.typing_delay = 50
+        self.line_pause = 500
 
     def on_enter(self):
         self.current_line_index = 0
         self.current_char_index = 0
         self.last_update = pygame.time.get_ticks()
-        self.state = "TYPING"  # Can be TYPING, PAUSED
+        self.state = "TYPING"
 
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                # Pressing any key now simply skips the entire story intro.
-                # This is simpler and more robust than multi-stage skipping.
+
                 self.state_manager.set_state(self.next_state)
 
     def update(self):
@@ -558,9 +530,9 @@ class StoryState(BaseState):
                     self.current_char_index += 1
                     if self.story_lines[self.current_line_index][self.current_char_index - 1] != ' ':
                         assets.play_sound('key_press')
-                else:  # Line finished typing
+                else:
                     self.state = "PAUSED"
-                    self.last_update = now  # Reset timer for the pause
+                    self.last_update = now
 
         elif self.state == "PAUSED":
             if now - self.last_update > self.line_pause:
@@ -574,14 +546,13 @@ class StoryState(BaseState):
     def draw(self, surface):
         surface.fill(BLACK)
         y_pos = 100
-        # Draw all completed lines
+
         for i in range(self.current_line_index):
             rendered_line = STORY_FONT.render(self.story_lines[i], True, WHITE)
             rect = rendered_line.get_rect(centerx=SCREEN_WIDTH / 2, y=y_pos)
             surface.blit(rendered_line, rect)
             y_pos += 40
 
-        # Draw the currently typing line
         if self.current_line_index < len(self.story_lines):
             typing_line_text = self.story_lines[self.current_line_index][:self.current_char_index]
             rendered_typing_line = STORY_FONT.render(typing_line_text, True, WHITE)
@@ -591,8 +562,6 @@ class StoryState(BaseState):
         prompt_rect = self.skip_prompt.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
         surface.blit(self.skip_prompt, prompt_rect)
 
-
-### MODIFIED ### Also updated this state with a typewriter effect
 class LevelIntroState(BaseState):
     """Displays story text before a level starts."""
 
@@ -619,7 +588,7 @@ class LevelIntroState(BaseState):
         for event in events:
             if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
                 if not self.finished_typing:
-                    self.finished_typing = True  # Finish all typing
+                    self.finished_typing = True
                 else:
                     self.state_manager.set_state("GAME")
 
@@ -637,7 +606,7 @@ class LevelIntroState(BaseState):
                     self.char_index += 1
                     if self.wrapped_story_lines[self.line_index][self.char_index - 1] != ' ':
                         assets.play_sound('key_press')
-                else:  # Move to next line
+                else:
                     self.line_index += 1
                     self.char_index = 0
             else:
@@ -650,7 +619,6 @@ class LevelIntroState(BaseState):
 
         y_pos = SCREEN_HEIGHT / 2
 
-        # If we are done typing, just draw everything
         if self.finished_typing:
             for line in self.wrapped_story_lines:
                 story_surf = STORY_FONT.render(line, True, CYAN)
@@ -658,20 +626,18 @@ class LevelIntroState(BaseState):
                 surface.blit(story_surf, story_rect)
                 y_pos += 40
         else:
-            # Draw completed lines
+
             for i in range(self.line_index):
                 story_surf = STORY_FONT.render(self.wrapped_story_lines[i], True, CYAN)
                 story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
                 surface.blit(story_surf, story_rect)
                 y_pos += 40
 
-            # Draw current typing line
             if self.line_index < len(self.wrapped_story_lines):
                 sub_text = self.wrapped_story_lines[self.line_index][:self.char_index]
                 story_surf = STORY_FONT.render(sub_text, True, CYAN)
                 story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
                 surface.blit(story_surf, story_rect)
-
 
 class LevelManager:
     def __init__(self, state_manager):
@@ -710,7 +676,6 @@ class LevelManager:
             self.load_level(self.levels[self.current_level_index])
         else:
             self.state_manager.set_state("WIN")
-
 
 class GameScene(BaseState):
     def __init__(self, state_manager, puzzle_manager, level_manager, level_data, level_title):
@@ -817,7 +782,6 @@ class GameScene(BaseState):
             pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
-
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
@@ -991,9 +955,8 @@ class TerminalState(BaseState):
             fade_surf.set_alpha(self.transition_alpha)
             surface.blit(fade_surf, (0, 0))
 
-
 class MenuState(BaseState):
-    ### MODIFIED ### Added fade-in logic
+
     def __init__(self, state_manager, level_manager):
         super().__init__()
         self.state_manager, self.level_manager = state_manager, level_manager
@@ -1017,7 +980,7 @@ class MenuState(BaseState):
         self.background_image = pygame.transform.scale(raw_bg, (SCREEN_WIDTH, SCREEN_HEIGHT)) if raw_bg else None
 
     def on_enter(self):
-        self.fade_alpha = 255  # Reset fade for when we return to menu
+        self.fade_alpha = 255
         assets.play_sound("menu_music", channel='music', loops=-1, fade_ms=1000)
 
     def on_exit(self):
@@ -1046,13 +1009,12 @@ class MenuState(BaseState):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     def update(self):
-        # Glitch effect for title
+
         self.glitch_timer += 1
         if self.glitch_timer % 10 == 0: self.glitch_offset = (random.randint(-4, 4), random.randint(-4, 4))
         if self.glitch_timer > 60 and random.random() < 0.95: self.glitch_offset = (0, 0)
         if self.glitch_timer > 120: self.glitch_timer = 0
 
-        # Fade-in effect
         if self.fade_alpha > 0:
             self.fade_alpha = max(0, self.fade_alpha - 5)
 
@@ -1069,13 +1031,10 @@ class MenuState(BaseState):
             color = AMBER if rect.collidepoint(pygame.mouse.get_pos()) else WHITE
             surface.blit(BUTTON_FONT.render(text, True, color), rect)
 
-        # Draw fade-in overlay
         if self.fade_alpha > 0:
             self.fade_surface.set_alpha(self.fade_alpha)
             surface.blit(self.fade_surface, (0, 0))
 
-
-# ... (InstructionsState and SettingsState are unchanged and go here) ...
 class InstructionsState(BaseState):
     def __init__(self, state_manager):
         super().__init__()
@@ -1110,7 +1069,6 @@ class InstructionsState(BaseState):
         for surf, rect in self.rendered_lines: surface.blit(surf, rect)
         color = AMBER if self.back_button_rect.collidepoint(pygame.mouse.get_pos()) else WHITE
         surface.blit(BUTTON_FONT.render("[ Back ]", True, color), self.back_button_rect)
-
 
 class SettingsState(BaseState):
     def __init__(self, state_manager, settings_manager):
@@ -1216,7 +1174,6 @@ class SettingsState(BaseState):
         reset_text = BUTTON_FONT.render("[ Reset ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
 
-
 class WinState(BaseState):
     def __init__(self):
         super().__init__()
@@ -1251,18 +1208,16 @@ class WinState(BaseState):
         prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
         surface.blit(self.prompt_text, prompt_rect)
 
-
-# ... (Level story intros and Level data are unchanged and go here) ...
 level_story_intros = [
-    "My first priority is to restore backup power. The main lab terminal should have my research notes.",  # Level 1
+    "My first priority is to restore backup power. The main lab terminal should have my research notes.",
     "Power is on. I need to understand the system architecture. The college's digital archives might have the original schematics.",
-    # Level 2
+
     "The schematics mentioned a security AI called 'Warden'. I need to bypass its primary firewalls in the Network Hub.",
-    # Level 3
+
     "I'm through the firewalls, but the glitches are getting worse. I think the Warden knows I'm here. This is its domain.",
-    # Level 4
+
     "This is it. The core of the system. I have to find the master override terminals to gain full root access and initiate the reboot.",
-    # Level 5
+
 ]
 level_1_data = {
     "player": {"start_pos": (600, 400)},
@@ -1415,7 +1370,6 @@ level_5_data = {
         "surveillance_report.txt": "Subject deviates from expected path. Agitated. Recalibrating escape probability... 41.3%."}
 }
 
-
 def main():
     global assets, settings
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -1459,7 +1413,6 @@ def main():
         clock.tick(FPS)
 
     pygame.quit()
-
 
 if __name__ == "__main__":
     main()
