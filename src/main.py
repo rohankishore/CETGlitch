@@ -795,8 +795,8 @@ class GameScene(BaseState):
         if self.show_map: self.draw_map(surface)
 
     def draw_map(self, surface):
-        map_surf = pygame.Surface((250, 150));
-        map_surf.fill(MAP_GRAY);
+        map_surf = pygame.Surface((250, 150))
+        map_surf.fill(MAP_GRAY)
         map_surf.set_alpha(200)
         all_rects = [w.rect for w in self.walls] + [p.rect for p in self.interactives]
         if not all_rects: return
@@ -904,11 +904,12 @@ class TerminalState(BaseState):
             self.add_output(f"Privilege: {priv}/3. Main Door: {door}. Network: OFFLINE.")
         elif command == "unlock":
             if self.puzzle_manager.get_state('privilege_level') >= 3:
-                self.add_output("Privilege accepted. Unlocking door...");
+                self.add_output("Privilege accepted. Unlocking door...")
                 self.puzzle_manager.set_state("door_unlocked", True)
                 assets.play_sound("override_success")
             else:
-                self.add_output("ERROR: Insufficient privileges. Level 3 required."); assets.play_sound(
+                self.add_output("ERROR: Insufficient privileges. Level 3 required.")
+                assets.play_sound(
                     "terminal_error")
         elif command == "override":
             if len(parts) > 1:
@@ -917,9 +918,9 @@ class TerminalState(BaseState):
                     if code == puzzle["answer"]:
                         found = True
                         if not self.puzzle_manager.get_state(f"{puzzle['id']}_solved"):
-                            self.puzzle_manager.set_state(f"{puzzle['id']}_solved", True);
+                            self.puzzle_manager.set_state(f"{puzzle['id']}_solved", True)
                             self.puzzle_manager.increment_privilege()
-                            self.add_output("Override code accepted. Privilege level increased.");
+                            self.add_output("Override code accepted. Privilege level increased.")
                             assets.play_sound("override_success")
                         else:
                             self.add_output("Code already used. No effect.")
@@ -1010,7 +1011,7 @@ class MenuState(BaseState):
         y_pos = 300
         for text in self.button_texts:
             rect = BUTTON_FONT.render(text, True, WHITE).get_rect(center=(SCREEN_WIDTH // 2, y_pos))
-            self.buttons[text] = rect;
+            self.buttons[text] = rect
             y_pos += 70
         raw_bg = assets.get_image("background")
         self.background_image = pygame.transform.scale(raw_bg, (SCREEN_WIDTH, SCREEN_HEIGHT)) if raw_bg else None
