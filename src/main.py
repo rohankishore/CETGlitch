@@ -1052,12 +1052,12 @@ level_3_data = {
     "puzzles": {
         "p1": {"id": "chai_riddle",
                "question": "The annual celebration of arts and culture, a vibrant melody in our college life. What is its name?",
-               "answer": "dhwani"},
+               "answer": "1"},
         "p2": {"id": "sgpa_riddle",
                "question": "Where actors perform under the stars, and memories are made on stone steps.",
-               "answer": "oat"},
+               "answer": "2"},
         "p3": {"id": "landmark_riddle", "question": "What is the three-letter acronym for our parent university?",
-               "answer": "ktu"}
+               "answer": "3"}
     },
     "terminal_files": {
         "security_log.txt": "SECURITY ALERT: Unauthorized access attempts detected. Multiple uses of the 'override' command with invalid codes. System integrity is compromised. All personnel should be vigilant.",
