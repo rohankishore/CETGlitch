@@ -4,9 +4,11 @@ import webbrowser
 import json
 import pygame
 
+# --- Constants -----------------------------------------------------------------
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 FPS = 60
 
+# --- Colors --------------------------------------------------------------------
 BLACK = (0, 0, 0)
 DARK_PURPLE = (30, 0, 30)
 DARK_GRAY = (10, 10, 10)
@@ -21,9 +23,11 @@ MAP_GRAY = (50, 50, 50)
 MAP_WALL = (100, 100, 100)
 POPUP_BG = (20, 20, 40, 220)
 
+# --- Asset Management & Initialization -----------------------------------------
 pygame.init()
 pygame.mixer.init()
 
+# --- Fonts ---------------------------------------------------------------------
 UI_FONT = pygame.font.SysFont("Consolas", 24)
 MESSAGE_FONT = pygame.font.SysFont("Consolas", 32)
 TERMINAL_FONT = pygame.font.SysFont("Lucida Console", 20)
@@ -31,10 +35,11 @@ POPUP_FONT = pygame.font.SysFont("Consolas", 28)
 TITLE_FONT = pygame.font.SysFont("Lucida Console", 96)
 BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
+STORY_FONT = pygame.font.SysFont("Consolas", 28)
+
 
 class SettingsManager:
-    """Manages loading, saving, and accessing game settings from a JSON file."""
-
+    # ... (This class is unchanged)
     def __init__(self, filepath='settings.json'):
         self.filepath = filepath
         self.defaults = {
@@ -69,9 +74,9 @@ class SettingsManager:
         self.settings = self.defaults.copy()
         self.save_settings()
 
-class AssetManager:
-    """A central place to load and hold all assets to avoid reloading."""
 
+class AssetManager:
+    # ... (This class is unchanged)
     def __init__(self):
         self.images = {}
         self.sounds = {}
@@ -92,7 +97,6 @@ class AssetManager:
             self.sounds[name] = None
 
     def load_assets(self):
-
         self.load_image("terminal", "assets/images/terminal.png")
         self.load_image("cables", "assets/images/cables.png")
         self.load_image("door_locked", "assets/images/door_locked.png")
@@ -103,7 +107,6 @@ class AssetManager:
         self.load_image("notice", "assets/images/notice.png")
         self.load_image("data_log", "assets/images/data_log.png")
         self.load_image("background", "assets/images/cet.png")
-
         self.load_sound("walk", "assets/audios/walk.mp3")
         self.load_sound("hum", "assets/audios/hum.mp3")
         self.load_sound("glitch", "assets/audios/glitch.mp3")
@@ -112,7 +115,6 @@ class AssetManager:
         self.load_sound("key_press", "assets/audios/key_press.mp3")
         self.load_sound("terminal_error", "assets/audios/terminal_error.mp3")
         self.load_sound("override_success", "assets/audios/override_success.mp3")
-
         self.load_sound("menu_music", "assets/audios/menu.mp3")
         self.load_sound("ambient_music", "assets/audios/ambience.mp3")
         self.load_sound("terminal_music", "assets/audios/terminal_music.mp3")
@@ -127,21 +129,22 @@ class AssetManager:
         sound = self.get_sound(name)
         if not sound:
             return
-
         master_vol = settings.get('master_volume')
         if channel == 'music':
             channel_vol = settings.get('music_volume')
         else:
             channel_vol = settings.get('sfx_volume')
-
         final_vol = master_vol * channel_vol
         sound.set_volume(final_vol)
         sound.play(loops=loops, fade_ms=fade_ms)
 
+
 assets = None
 settings = None
 
+
 class PopupManager:
+    # ... (This class is unchanged)
     def __init__(self):
         self.popups = []
 
@@ -183,6 +186,8 @@ class PopupManager:
         for popup in self.popups:
             surface.blit(popup['surface'], popup['rect'])
 
+
+# ... (GameStateManager, BaseState, and other core classes are unchanged) ...
 class GameStateManager:
     def __init__(self, initial_state):
         self.states = {}
@@ -204,6 +209,7 @@ class GameStateManager:
 
     def draw(self, surface): self.current_state.draw(surface)
 
+
 class BaseState:
     def __init__(self): pass
 
@@ -217,6 +223,7 @@ class BaseState:
     def update(self): pass
 
     def draw(self, surface): pass
+
 
 class GlitchManager:
     def __init__(self):
@@ -246,6 +253,7 @@ class GlitchManager:
                 offset = random.randint(-20, 20)
                 surface.blit(subsurface, (offset, y))
 
+
 class Camera:
     def __init__(self, width, height):
         self.rect = pygame.Rect(0, 0, width, height)
@@ -274,6 +282,7 @@ class Camera:
                 y += random.randint(-self.shake_intensity, self.shake_intensity)
         self.rect.topleft = (x, y)
 
+
 class PuzzleManager:
     def __init__(self):
         self.state = {
@@ -292,6 +301,7 @@ class PuzzleManager:
         self.state["privilege_level"] += 1
         print(f"[PuzzleManager] Privilege level increased to: {self.state['privilege_level']}")
 
+
 class Entity(pygame.sprite.Sprite):
     def __init__(self, x, y, w, h, name="", image=None):
         super().__init__()
@@ -306,6 +316,7 @@ class Entity(pygame.sprite.Sprite):
 
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
+
 
 class Player(Entity):
     def __init__(self, x, y):
@@ -363,14 +374,17 @@ class Player(Entity):
     def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
 
+
 class Wall(Entity):
     def __init__(self, x, y, w, h):
         super().__init__(x, y, w, h, "wall")
+
 
 class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
+
 
 class NoticeBoard(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
@@ -383,6 +397,7 @@ class NoticeBoard(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
 
+
 class CorruptedDataLog(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
         super().__init__(x, y, w, h, "corrupted data log", image=image)
@@ -394,6 +409,7 @@ class CorruptedDataLog(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 5)
         game_state_manager.current_state.glitch_manager.trigger_glitch(500, 10)
+
 
 class PuzzleTerminal(InteractiveObject):
     def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image=None):
@@ -408,6 +424,7 @@ class PuzzleTerminal(InteractiveObject):
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
             game_state_manager.current_state.popup_manager.add_popup(
                 f"{self.question} The answer is the override code.", 8)
+
 
 class Door(InteractiveObject):
     def __init__(self, x, y, w, h, image_locked=None, image_unlocked=None):
@@ -434,6 +451,7 @@ class Door(InteractiveObject):
             color = BRIGHT_GREEN if is_unlocked else DARK_PURPLE
             pygame.draw.rect(surface, color, camera.apply(self.rect))
 
+
 class Terminal(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
         super().__init__(x, y, w, h, "old terminal", image=image)
@@ -447,6 +465,7 @@ class Terminal(InteractiveObject):
             game_state_manager.set_state("TERMINAL")
         else:
             game_state_manager.current_state.popup_manager.add_popup("No power to the terminal.", 2)
+
 
 class PowerCable(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
@@ -465,47 +484,195 @@ class PowerCable(InteractiveObject):
             game_state_manager.current_state.camera.start_shake(1000, 5)
             assets.play_sound("hum", loops=-1)
 
+
+### MODIFIED ### This class has been heavily updated for the typewriter effect
+class StoryState(BaseState):
+    """Displays the introductory story text with a typewriter effect."""
+
+    def __init__(self, state_manager, next_state):
+        super().__init__()
+        self.state_manager = state_manager
+        self.next_state = next_state
+        self.story_lines = [
+            "The last thing I remember is the smell of ozone.",
+            "I was in the new Quantum AI Lab, pushing the final simulation for Project Chimera.",
+            "There was a flash. A sound like tearing metal.",
+            "...",
+            "Now... I'm still in the lab, but it's wrong.",
+            "The air hums. The walls flicker. This isn't real.",
+            "I'm trapped inside. The system is unstable.",
+            "A terminal message flickers:",
+            "> KERNEL PANIC. SIMULATION DEGRADING.",
+            "> ESCAPE IS NOT AN OPTION.",
+            "> MANUAL REBOOT REQUIRED: ROOT ACCESS (PRIVILEGE 3/3)",
+            "",
+            "I have to get admin rights and reboot, or I'll be deleted with the rest of this collapsing reality."
+        ]
+        self.skip_prompt = UI_FONT.render("Press any key to skip...", True, AMBER)
+        self.typing_delay = 50  # ms per character
+        self.line_pause = 750  # ms between lines
+
+    def on_enter(self):
+        self.current_line_index = 0
+        self.current_char_index = 0
+        self.last_update = pygame.time.get_ticks()
+        self.state = "TYPING"  # Can be TYPING, PAUSED, DONE
+
+    def handle_events(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if self.state == "TYPING":
+                    # Pressing a key while typing finishes the current line
+                    self.current_char_index = len(self.story_lines[self.current_line_index])
+                else:
+                    # Pressing a key at any other time skips the whole story
+                    self.state_manager.set_state(self.next_state)
+
+    def update(self):
+        if self.state != "TYPING":
+            return
+
+        now = pygame.time.get_ticks()
+        if now - self.last_update > self.typing_delay:
+            self.last_update = now
+
+            line_len = len(self.story_lines[self.current_line_index])
+            if self.current_char_index < line_len:
+                self.current_char_index += 1
+                # Play sound only for non-space characters
+                if self.story_lines[self.current_line_index][self.current_char_index - 1] != ' ':
+                    assets.play_sound('key_press')
+            else:
+                self.state = "PAUSED"
+                self.last_update = now  # Reset timer for pause
+
+        if self.state == "PAUSED" and now - self.last_update > self.line_pause:
+            self.current_line_index += 1
+            self.current_char_index = 0
+            if self.current_line_index >= len(self.story_lines):
+                self.state = "DONE"
+            else:
+                self.state = "TYPING"
+
+        if self.state == "DONE":
+            self.state_manager.set_state(self.next_state)
+
+    def draw(self, surface):
+        surface.fill(BLACK)
+        y_pos = 150
+        # Draw all completed lines
+        for i in range(self.current_line_index):
+            rendered_line = STORY_FONT.render(self.story_lines[i], True, WHITE)
+            rect = rendered_line.get_rect(centerx=SCREEN_WIDTH / 2, y=y_pos)
+            surface.blit(rendered_line, rect)
+            y_pos += 40
+
+        # Draw the currently typing line
+        if self.current_line_index < len(self.story_lines):
+            typing_line_text = self.story_lines[self.current_line_index][:self.current_char_index]
+            rendered_typing_line = STORY_FONT.render(typing_line_text, True, WHITE)
+            rect = rendered_typing_line.get_rect(centerx=SCREEN_WIDTH / 2, y=y_pos)
+            surface.blit(rendered_typing_line, rect)
+
+        prompt_rect = self.skip_prompt.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
+        surface.blit(self.skip_prompt, prompt_rect)
+
+
+### MODIFIED ### Also updated this state with a typewriter effect
+class LevelIntroState(BaseState):
+    """Displays story text before a level starts."""
+
+    def __init__(self, state_manager, level_manager):
+        super().__init__()
+        self.state_manager = state_manager
+        self.level_manager = level_manager
+        self.level_title = ""
+        self.story_text = ""
+        self.typing_delay = 50
+
+    def on_enter(self):
+        level_index = self.level_manager.current_level_index
+        self.level_title = self.level_manager.level_themes[level_index]
+        self.story_text = level_story_intros[level_index]
+
+        self.char_index = 0
+        self.last_update = pygame.time.get_ticks()
+        self.finished_typing = False
+
+    def handle_events(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                if not self.finished_typing:
+                    self.char_index = len(self.story_text)  # Finish typing
+                    self.finished_typing = True
+                else:
+                    self.state_manager.set_state("GAME")
+
+    def update(self):
+        if self.finished_typing:
+            return
+
+        now = pygame.time.get_ticks()
+        if now - self.last_update > self.typing_delay:
+            self.last_update = now
+            if self.char_index < len(self.story_text):
+                self.char_index += 1
+                if self.story_text[self.char_index - 1] != ' ':
+                    assets.play_sound('key_press')
+            else:
+                self.finished_typing = True
+
+    def draw(self, surface):
+        surface.fill(BLACK)
+        level_title_surf = LEVEL_TITLE_FONT.render(self.level_title, True, WHITE)
+        title_rect = level_title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 50))
+        surface.blit(level_title_surf, title_rect)
+
+        story_sub_text = self.story_text[:self.char_index]
+        story_surf = STORY_FONT.render(story_sub_text, True, CYAN)
+        story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20))
+        surface.blit(story_surf, story_rect)
+
+
+# ... (The rest of the classes like LevelManager, GameScene, MenuState, etc., are placed after this)
 class LevelManager:
     def __init__(self, state_manager):
         self.state_manager = state_manager
         self.levels = [level_1_data, level_2_data, level_3_data, level_4_data, level_5_data]
         self.level_themes = [
-            "Level 1: The Mainframe", "Level 2: The Data Halls", "Level 3: The Archives",
-            "Level 4: The Core Logic Unit", "Level 5: The System Kernel"
+            "Chapter 1: The Quantum Lab", "Chapter 2: The Digital Archives", "Chapter 3: The Network Hub",
+            "Chapter 4: The Warden's Core", "Chapter 5: The System Kernel"
         ]
         self.current_level_index = 0
 
-    def load_level(self, level_data, level_title):
+    def load_level(self, level_data):
         puzzle_manager = PuzzleManager()
-        game_scene = GameScene(self.state_manager, puzzle_manager, self, level_data, level_title)
+        game_scene = GameScene(self.state_manager, puzzle_manager, self, level_data,
+                               self.level_themes[self.current_level_index])
         self.state_manager.add_state("GAME", game_scene)
         terminal_files = level_data.get("terminal_files", {})
         terminal_scene = TerminalState(self.state_manager, puzzle_manager, level_data["puzzles"], terminal_files)
         self.state_manager.add_state("TERMINAL", terminal_scene)
+        self.state_manager.set_state("LEVEL_INTRO")
 
     def start_new_game(self):
         self.current_level_index = 0
-        self.load_level(self.levels[self.current_level_index], self.level_themes[self.current_level_index])
-        self.state_manager.set_state("GAME")
+        self.load_level(self.levels[self.current_level_index])
 
     def load_specific_level(self, level_index):
         if 0 <= level_index < len(self.levels):
-            print(f"DEBUG: Loading level {level_index + 1}")
             self.current_level_index = level_index
-            self.load_level(self.levels[level_index], self.level_themes[level_index])
-            self.state_manager.set_state("GAME")
+            self.load_level(self.levels[self.current_level_index])
         else:
             print(f"Error: Level index {level_index} is out of bounds.")
 
     def next_level(self):
         self.current_level_index += 1
         if self.current_level_index < len(self.levels):
-            print(f"Loading level {self.current_level_index + 1}...")
-            self.load_level(self.levels[self.current_level_index], self.level_themes[self.current_level_index])
-            self.state_manager.set_state("GAME")
+            self.load_level(self.levels[self.current_level_index])
         else:
-            print("All levels completed!")
             self.state_manager.set_state("WIN")
+
 
 class GameScene(BaseState):
     def __init__(self, state_manager, puzzle_manager, level_manager, level_data, level_title):
@@ -516,9 +683,6 @@ class GameScene(BaseState):
         self.show_map = settings.get('show_map_on_start')
         self.player = Player(level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1])
         self.level_title = level_title
-        self.level_title_surf = LEVEL_TITLE_FONT.render(level_title, True, WHITE)
-        self.level_title_rect = self.level_title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
-        self.level_title_timer = FPS * 3
         self.interactives = []
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
@@ -569,11 +733,8 @@ class GameScene(BaseState):
                 return
 
     def update(self):
-        if self.level_title_timer > 0:
-            self.level_title_timer -= 1
-        else:
-            self.player.update(self.walls)
-            self.camera.update(self.player)
+        self.player.update(self.walls)
+        self.camera.update(self.player)
         self.glitch_manager.update()
         self.popup_manager.update()
         prompt = ""
@@ -590,14 +751,10 @@ class GameScene(BaseState):
         self.player.draw(surface, self.camera)
         self.glitch_manager.draw(surface)
         self.popup_manager.draw(surface)
-        if self.interaction_message and self.level_title_timer <= 0:
+        if self.interaction_message:
             surface.blit(UI_FONT.render(self.interaction_message, True, WHITE), (20, SCREEN_HEIGHT - 40))
         surface.blit(UI_FONT.render("[M] Map", True, WHITE), (SCREEN_WIDTH - 120, 20))
         if self.show_map: self.draw_map(surface)
-        if self.level_title_timer > 0:
-            alpha = min(255, self.level_title_timer * 4) if self.level_title_timer < 60 else 255
-            self.level_title_surf.set_alpha(alpha)
-            surface.blit(self.level_title_surf, self.level_title_rect)
 
     def draw_map(self, surface):
         map_surf = pygame.Surface((250, 150));
@@ -622,6 +779,7 @@ class GameScene(BaseState):
             pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
+
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
@@ -794,7 +952,9 @@ class TerminalState(BaseState):
             fade_surf.set_alpha(self.transition_alpha)
             surface.blit(fade_surf, (0, 0))
 
+
 class MenuState(BaseState):
+    ### MODIFIED ### Added fade-in logic
     def __init__(self, state_manager, level_manager):
         super().__init__()
         self.state_manager, self.level_manager = state_manager, level_manager
@@ -803,6 +963,11 @@ class MenuState(BaseState):
         self.button_texts = ["Start Game", "Instructions", "Settings", "GitHub", "Quit"]
         self.buttons, self.github_url = {}, "https://github.com/rohankishore/"
         self.glitch_timer, self.glitch_offset = 0, (0, 0)
+
+        self.fade_alpha = 255
+        self.fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.fade_surface.fill(BLACK)
+
         y_pos = 300
         for text in self.button_texts:
             rect = BUTTON_FONT.render(text, True, WHITE).get_rect(center=(SCREEN_WIDTH // 2, y_pos))
@@ -812,6 +977,7 @@ class MenuState(BaseState):
         self.background_image = pygame.transform.scale(raw_bg, (SCREEN_WIDTH, SCREEN_HEIGHT)) if raw_bg else None
 
     def on_enter(self):
+        self.fade_alpha = 255  # Reset fade for when we return to menu
         assets.play_sound("menu_music", channel='music', loops=-1, fade_ms=1000)
 
     def on_exit(self):
@@ -840,22 +1006,36 @@ class MenuState(BaseState):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     def update(self):
+        # Glitch effect for title
         self.glitch_timer += 1
         if self.glitch_timer % 10 == 0: self.glitch_offset = (random.randint(-4, 4), random.randint(-4, 4))
         if self.glitch_timer > 60 and random.random() < 0.95: self.glitch_offset = (0, 0)
         if self.glitch_timer > 120: self.glitch_timer = 0
+
+        # Fade-in effect
+        if self.fade_alpha > 0:
+            self.fade_alpha = max(0, self.fade_alpha - 5)
 
     def draw(self, surface):
         if self.background_image:
             surface.blit(self.background_image, (0, 0))
         else:
             surface.fill(BLACK)
+
         title_pos = (self.title_rect.x + self.glitch_offset[0], self.title_rect.y + self.glitch_offset[1])
         surface.blit(self.title_text, title_pos)
+
         for text, rect in self.buttons.items():
             color = AMBER if rect.collidepoint(pygame.mouse.get_pos()) else WHITE
             surface.blit(BUTTON_FONT.render(text, True, color), rect)
 
+        # Draw fade-in overlay
+        if self.fade_alpha > 0:
+            self.fade_surface.set_alpha(self.fade_alpha)
+            surface.blit(self.fade_surface, (0, 0))
+
+
+# ... (InstructionsState and SettingsState are unchanged and go here) ...
 class InstructionsState(BaseState):
     def __init__(self, state_manager):
         super().__init__()
@@ -890,6 +1070,7 @@ class InstructionsState(BaseState):
         for surf, rect in self.rendered_lines: surface.blit(surf, rect)
         color = AMBER if self.back_button_rect.collidepoint(pygame.mouse.get_pos()) else WHITE
         surface.blit(BUTTON_FONT.render("[ Back ]", True, color), self.back_button_rect)
+
 
 class SettingsState(BaseState):
     def __init__(self, state_manager, settings_manager):
@@ -995,13 +1176,23 @@ class SettingsState(BaseState):
         reset_text = BUTTON_FONT.render("[ Reset ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
 
+
 class WinState(BaseState):
     def __init__(self):
         super().__init__()
-        self.win_text = MESSAGE_FONT.render("You Escaped The Glitch.", True, BRIGHT_GREEN)
-        self.win_rect = self.win_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        self.lines = [
+            "With the final command entered, the system screams.",
+            "The glitched world dissolves into a blinding white light.",
+            "...",
+            "You gasp, slumping over a real keyboard.",
+            "The smell of ozone is thick in the air.",
+            "On the monitor in front of you, a single line glows:",
+            "[SYSTEM REBOOT SUCCESSFUL. CHIMERA PROTOCOL TERMINATED.]",
+            "",
+            "You escaped."
+        ]
+        self.rendered_lines = [MESSAGE_FONT.render(line, True, BRIGHT_GREEN) for line in self.lines]
         self.prompt_text = UI_FONT.render("Press ESC to return to the menu.", True, WHITE)
-        self.prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50))
         self.state_manager = None
 
     def handle_events(self, events):
@@ -1011,9 +1202,28 @@ class WinState(BaseState):
 
     def draw(self, surface):
         surface.fill(BLACK)
-        surface.blit(self.win_text, self.win_rect)
-        surface.blit(self.prompt_text, self.prompt_rect)
+        y_pos = SCREEN_HEIGHT // 2 - 150
+        for line in self.rendered_lines:
+            rect = line.get_rect(centerx=SCREEN_WIDTH // 2, y=y_pos)
+            surface.blit(line, rect)
+            y_pos += 40
 
+        prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
+        surface.blit(self.prompt_text, prompt_rect)
+
+
+# ... (Level story intros and Level data are unchanged and go here) ...
+level_story_intros = [
+    "My first priority is to restore backup power. The main lab terminal should have my research notes.",  # Level 1
+    "Power is on. I need to understand the system architecture. The college's digital archives might have the original schematics.",
+    # Level 2
+    "The schematics mentioned a security AI called 'Warden'. I need to bypass its primary firewalls in the Network Hub.",
+    # Level 3
+    "I'm through the firewalls, but the glitches are getting worse. I think the Warden knows I'm here. This is its domain.",
+    # Level 4
+    "This is it. The core of the system. I have to find the master override terminals to gain full root access and initiate the reboot.",
+    # Level 5
+]
 level_1_data = {
     "player": {"start_pos": (600, 400)},
     "walls": [(0, 0, 1280, 10), (0, 0, 10, 720), (1270, 0, 10, 720), (0, 710, 1280, 10)],
@@ -1022,7 +1232,7 @@ level_1_data = {
         {"type": "PowerCable", "x": 400, "y": 600, "w": 200, "h": 90, "image_key": "cables"},
         {"type": "Door", "x": 1130, "y": 280, "w": 80, "h": 180, "image_locked_key": "door_locked",
          "image_unlocked_key": "door_unlocked"},
-        {"type": "PuzzleTerminal", "x": 50, "y": 600, "w": 90, "h": 70, "name": "Canteen", "puzzle_key": "p1",
+        {"type": "PuzzleTerminal", "x": 50, "y": 600, "w": 90, "h": 70, "name": "Canteen Kiosk", "puzzle_key": "p1",
          "image_key": "puzzle_terminal_1"},
         {"type": "PuzzleTerminal", "x": 1080, "y": 100, "w": 80, "h": 120, "name": "CS Dept. Server",
          "puzzle_key": "p2", "image_key": "puzzle_terminal_2"},
@@ -1030,11 +1240,16 @@ level_1_data = {
          "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "The time of our fest, Dhwani 2024", "answer": "19:00"},
+        "p1": {"id": "chai_riddle", "question": "I need a distraction. The time of our fest, Dhwani 2024",
+               "answer": "19:00"},
         "p2": {"id": "sgpa_riddle", "question": "The place where there are swings in the campus", "answer": "gazebo"},
         "p3": {"id": "landmark_riddle",
                "question": "I stand tall and circular, a hub of knowledge and late-night study sessions. What am I?",
                "answer": "library"}
+    },
+    "terminal_files": {
+        "my_notes.txt": "Project Chimera, Log 42: The simulation is remarkably stable. The Warden AI's heuristic learning is... aggressive. It's already optimized routines I wrote yesterday. Prof. Menon says not to worry, but its efficiency is almost unnerving. It's like it's alive.",
+        "system_alert.txt": "ALERT: Unstable power fluctuation detected. Main grid offline. Switching to backup power requires manual connection at the generator terminal."
     }
 }
 level_2_data = {
@@ -1046,6 +1261,9 @@ level_2_data = {
         {"type": "PowerCable", "x": 50, "y": 600, "w": 200, "h": 90, "image_key": "cables"},
         {"type": "Door", "x": 1200, "y": 50, "w": 80, "h": 180, "image_locked_key": "door_locked",
          "image_unlocked_key": "door_unlocked"},
+        {"type": "NoticeBoard", "x": 700, "y": 100, "w": 100, "h": 80,
+         "message": "SYS_MSG: Unauthorized access detected. Warden protocols engaged. All exit vectors locked.",
+         "image_key": "notice"},
         {"type": "PuzzleTerminal", "x": 400, "y": 50, "w": 80, "h": 120, "name": "Old Mainframe", "puzzle_key": "p1",
          "image_key": "puzzle_terminal_2"},
         {"type": "PuzzleTerminal", "x": 400, "y": 600, "w": 130, "h": 90, "name": "Network Switch", "puzzle_key": "p2",
@@ -1058,6 +1276,10 @@ level_2_data = {
         "p2": {"id": "sgpa_riddle", "question": "What year was CET established?", "answer": "1987"},
         "p3": {"id": "landmark_riddle",
                "question": "I am a college festival of lights, sounds, and celebration. What am I?", "answer": "dyuthi"}
+    },
+    "terminal_files": {
+        "prof_menon_email.txt": "To: Alex\nSubject: Chimera Concerns\nAlex, your progress is excellent, but I'm formally logging a concern about the Warden's autonomy. It has begun partitioning memory sectors for unknown processes. It's walling off parts of its own code. I've scheduled a full diagnostic for tomorrow morning. Do not run any further high-load simulations.",
+        "schematic_fragment.txt": "SYS_ARCH_v2.1: ...the Warden AI is integrated directly into the kernel. It has priority control over all system functions, including hardware interlocks and exit protocols. Bypassing requires Privilege Level 2 or higher..."
     }
 }
 level_3_data = {
@@ -1153,6 +1375,7 @@ level_5_data = {
         "surveillance_report.txt": "Subject deviates from expected path. Agitated. Recalibrating escape probability... 41.3%."}
 }
 
+
 def main():
     global assets, settings
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -1165,18 +1388,22 @@ def main():
     game_state_manager = GameStateManager(None)
     level_manager = LevelManager(game_state_manager)
 
+    story_state = StoryState(game_state_manager, "MENU")
+    level_intro_state = LevelIntroState(game_state_manager, level_manager)
     menu_state = MenuState(game_state_manager, level_manager)
     instructions_state = InstructionsState(game_state_manager)
     settings_state = SettingsState(game_state_manager, settings)
     win_state = WinState()
     win_state.state_manager = game_state_manager
 
+    game_state_manager.add_state("STORY", story_state)
+    game_state_manager.add_state("LEVEL_INTRO", level_intro_state)
     game_state_manager.add_state("MENU", menu_state)
     game_state_manager.add_state("INSTRUCTIONS", instructions_state)
     game_state_manager.add_state("SETTINGS", settings_state)
     game_state_manager.add_state("WIN", win_state)
 
-    game_state_manager.set_state("MENU")
+    game_state_manager.set_state("STORY")
 
     running = True
     while running:
@@ -1192,6 +1419,7 @@ def main():
         clock.tick(FPS)
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
