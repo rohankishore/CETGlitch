@@ -1,6 +1,7 @@
 import random
 import time
 import webbrowser
+import math  # --- NEW --- Needed for glow effect
 
 import pygame
 from moviepy.editor import VideoFileClip
@@ -8,6 +9,7 @@ from moviepy.editor import VideoFileClip
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 FPS = 60
 
+# Colors
 BLACK = (0, 0, 0)
 DARK_PURPLE = (30, 0, 30)
 DARK_GRAY = (10, 10, 10)
@@ -26,9 +28,84 @@ UI_FONT = pygame.font.SysFont("Consolas", 24)
 MESSAGE_FONT = pygame.font.SysFont("Consolas", 32)
 TERMINAL_FONT = pygame.font.SysFont("Lucida Console", 20)
 POPUP_FONT = pygame.font.SysFont("Consolas", 28)
-
+# Fonts for the menu
 TITLE_FONT = pygame.font.SysFont("Lucida Console", 96)
 BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
+
+
+# --- NEW: Particle System ---
+class Particle:
+    """A single particle for effects like sparks."""
+
+    def __init__(self, x, y, color):
+        self.x = x
+        self.y = y
+        self.color = color
+        self.vx = random.uniform(-2, 2)
+        self.vy = random.uniform(-4, -1)
+        self.lifespan = random.randint(20, 40)
+        self.radius = random.randint(2, 5)
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.vy += 0.1  # Gravity
+        self.lifespan -= 1
+        self.radius -= 0.05
+        return self.lifespan > 0 and self.radius > 0
+
+    def draw(self, surface, camera):
+        if self.radius > 0:
+            pos = camera.apply(pygame.Rect(self.x, self.y, 0, 0)).topleft
+            pygame.draw.circle(surface, self.color, pos, int(self.radius))
+
+
+class ParticleManager:
+    """Manages all active particles."""
+
+    def __init__(self):
+        self.particles = []
+
+    def add_burst(self, x, y, count, color):
+        for _ in range(count):
+            self.particles.append(Particle(x, y, color))
+
+    def update(self):
+        self.particles = [p for p in self.particles if p.update()]
+
+    def draw(self, surface, camera):
+        for particle in self.particles:
+            particle.draw(surface, camera)
+
+
+# --- NEW: Lighting System ---
+class LightingManager:
+    """Creates a flashlight effect around the player."""
+
+    def __init__(self, width, height):
+        self.light_surface = pygame.Surface((width, height))
+        self.light_surface.set_colorkey(WHITE)  # Will make white areas transparent
+        self.dark_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        self.darkness_alpha = 220  # How dark the level is (0-255)
+        self.dark_surface.fill((0, 0, 0, self.darkness_alpha))
+        self.light_radius = 180
+        self.flicker_amount = 5
+
+    def update(self, player_rect, camera):
+        self.light_surface.fill(BLACK)
+        player_screen_pos = camera.apply(player_rect).center
+
+        # Flicker effect
+        current_radius = self.light_radius + random.randint(-self.flicker_amount, self.flicker_amount)
+
+        # Draw the light gradient
+        pygame.draw.circle(self.light_surface, WHITE, player_screen_pos, current_radius)
+
+    def draw(self, surface):
+        # Draw the darkness everywhere, then "erase" it where the light is
+        surface.blit(self.dark_surface, (0, 0))
+        surface.blit(self.light_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+
 
 class PopupManager:
     """Manages displaying and timing out popup messages."""
@@ -73,6 +150,7 @@ class PopupManager:
         for popup in self.popups:
             surface.blit(popup['surface'], popup['rect'])
 
+
 class GameStateManager:
     """Manages the current state of the game."""
 
@@ -96,6 +174,7 @@ class GameStateManager:
 
     def draw(self, surface): self.current_state.draw(surface)
 
+
 class BaseState:
     """A template for all game states."""
 
@@ -110,6 +189,7 @@ class BaseState:
     def update(self): pass
 
     def draw(self, surface): pass
+
 
 class GlitchManager:
     """Creates intense, screen-wide visual distortion effects."""
@@ -140,6 +220,7 @@ class GlitchManager:
                 offset = random.randint(-20, 20)
                 surface.blit(subsurface, (offset, y))
 
+
 class Camera:
     """Manages the game's viewport and screen shake."""
 
@@ -148,6 +229,7 @@ class Camera:
         self.shake_intensity = 0
         self.shake_duration = 0
         self.shake_start_time = 0
+        self.lerp_factor = 0.1  # --- NEW --- For smooth camera movement
 
     def apply(self, entity_rect):
         return entity_rect.move(self.rect.topleft)
@@ -158,17 +240,28 @@ class Camera:
         self.shake_start_time = pygame.time.get_ticks()
 
     def update(self, target):
-        x = -target.rect.centerx + SCREEN_WIDTH // 2
-        y = -target.rect.centery + SCREEN_HEIGHT // 2
+        # --- MODIFIED --- Smoother camera movement
+        target_x = -target.rect.centerx + SCREEN_WIDTH // 2
+        target_y = -target.rect.centery + SCREEN_HEIGHT // 2
+
+        # Lerp (linear interpolation) for smooth gliding
+        self.rect.x += (target_x - self.rect.x) * self.lerp_factor
+        self.rect.y += (target_y - self.rect.y) * self.lerp_factor
+
+        # Apply shake on top of the smooth position
         if self.shake_duration > 0 and self.shake_start_time > 0:
             elapsed = pygame.time.get_ticks() - self.shake_start_time
             if elapsed > self.shake_duration:
                 self.shake_duration = 0
                 self.shake_intensity = 0
             else:
-                x += random.randint(-self.shake_intensity, self.shake_intensity)
-                y += random.randint(-self.shake_intensity, self.shake_intensity)
-        self.rect.topleft = (x, y)
+                self.rect.x += random.randint(-self.shake_intensity, self.shake_intensity)
+                self.rect.y += random.randint(-self.shake_intensity, self.shake_intensity)
+
+    def snap_to(self, target):  # --- NEW --- For instantly setting position at level start
+        self.rect.x = -target.rect.centerx + SCREEN_WIDTH // 2
+        self.rect.y = -target.rect.centery + SCREEN_HEIGHT // 2
+
 
 class PuzzleManager:
     """Tracks the state of puzzles and game progression."""
@@ -189,6 +282,7 @@ class PuzzleManager:
     def increment_privilege(self):
         self.state["privilege_level"] += 1
         print(f"[PuzzleManager] Privilege level increased to: {self.state['privilege_level']}")
+
 
 class Entity(pygame.sprite.Sprite):
     """Base class for all game objects that can now handle images."""
@@ -211,11 +305,11 @@ class Entity(pygame.sprite.Sprite):
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
 
+
 class Player(Entity):
     """Represents the player character, now with walking sounds."""
 
     def __init__(self, x, y):
-
         super().__init__(x, y, 32, 40, name="player")
         self.speed = 5
         self.image.fill(CYAN)
@@ -274,14 +368,21 @@ class Player(Entity):
     def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
 
+
 class Wall(Entity):
     def __init__(self, x, y, w, h):
         super().__init__(x, y, w, h, "wall")
 
+
 class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
-    def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
+    def interact(self, game_state_manager, puzzle_manager):
+        print(f"Interacted with {self.name}")
+        current_scene = game_state_manager.current_state
+        if hasattr(current_scene, 'interact_sound') and current_scene.interact_sound:
+            current_scene.interact_sound.play()
+
 
 class NoticeBoard(InteractiveObject):
     def __init__(self, x, y, w, h, message, image_path=None):
@@ -292,7 +393,9 @@ class NoticeBoard(InteractiveObject):
         return "An old, dusty notice board. [E] to read."
 
     def interact(self, game_state_manager, puzzle_manager):
+        super().interact(game_state_manager, puzzle_manager)
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
+
 
 class CorruptedDataLog(InteractiveObject):
     def __init__(self, x, y, w, h, message, image_path=None):
@@ -303,8 +406,10 @@ class CorruptedDataLog(InteractiveObject):
         return "A data log, flickering erratically. [E] to examine."
 
     def interact(self, game_state_manager, puzzle_manager):
+        super().interact(game_state_manager, puzzle_manager)
         game_state_manager.current_state.popup_manager.add_popup(self.message, 5)
         game_state_manager.current_state.glitch_manager.trigger_glitch(500, 10)
+
 
 class PuzzleTerminal(InteractiveObject):
     def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image_path=None):
@@ -318,9 +423,11 @@ class PuzzleTerminal(InteractiveObject):
         return f"A flickering {self.name}. [E] to read."
 
     def interact(self, game_state_manager, puzzle_manager):
+        super().interact(game_state_manager, puzzle_manager)
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
             game_state_manager.current_state.popup_manager.add_popup(
                 f"{self.question} The answer is the override code.", 8)
+
 
 class Door(InteractiveObject):
     def __init__(self, x, y, w, h, image_path_locked=None, image_path_unlocked=None):
@@ -344,6 +451,7 @@ class Door(InteractiveObject):
         return "It's locked. A digital keypad is dark."
 
     def interact(self, game_state_manager, puzzle_manager):
+        super().interact(game_state_manager, puzzle_manager)
         if puzzle_manager.get_state("door_unlocked"): game_state_manager.current_state.level_manager.next_level()
 
     def draw(self, surface, camera, puzzle_manager):
@@ -355,6 +463,7 @@ class Door(InteractiveObject):
             color = BRIGHT_GREEN if is_unlocked else DARK_PURPLE
             pygame.draw.rect(surface, color, camera.apply(self.rect))
 
+
 class Terminal(InteractiveObject):
     def __init__(self, x, y, w, h, image_path=None):
         super().__init__(x, y, w, h, "old terminal", image_path=image_path)
@@ -364,10 +473,12 @@ class Terminal(InteractiveObject):
         return "The screen is dead. Power seems to be out."
 
     def interact(self, game_state_manager, puzzle_manager):
+        super().interact(game_state_manager, puzzle_manager)
         if puzzle_manager.get_state("power_restored"):
             game_state_manager.set_state("TERMINAL")
         else:
             game_state_manager.current_state.popup_manager.add_popup("No power to the terminal.", 2)
+
 
 class PowerCable(InteractiveObject):
     def __init__(self, x, y, w, h, image_path=None):
@@ -378,22 +489,36 @@ class PowerCable(InteractiveObject):
         return "A tangled mess. One seems to lead to a backup generator. [E] to connect."
 
     def interact(self, game_state_manager, puzzle_manager):
+        # We don't call super().interact() here because we want a unique sound.
         if not puzzle_manager.get_state("power_restored"):
             puzzle_manager.set_state("power_restored", True)
-            game_state_manager.current_state.popup_manager.add_popup(
-                "You connected the main cable. A low hum fills the room.", 4)
-            game_state_manager.current_state.glitch_manager.trigger_glitch(1000, 15)
-            game_state_manager.current_state.camera.start_shake(1000, 5)
-
             current_scene = game_state_manager.current_state
+
+            # --- MODIFIED: More effects! ---
+            current_scene.popup_manager.add_popup(
+                "You connected the main cable. A low hum fills the room.", 4)
+            current_scene.glitch_manager.trigger_glitch(1000, 15)
+            current_scene.camera.start_shake(1000, 5)
+            current_scene.particle_manager.add_burst(self.rect.centerx, self.rect.centery, 50, AMBER)
+            current_scene.trigger_screen_flash(255, 0.5)  # Flash effect
+
+            if current_scene.powerup_sound:
+                current_scene.powerup_sound.play()
             if current_scene.hum_sound:
                 current_scene.hum_sound.play(loops=-1)
+
 
 class LevelManager:
     def __init__(self, state_manager):
         self.state_manager = state_manager
         self.levels = [level_1_data, level_2_data, level_3_data, level_4_data, level_5_data]
         self.current_level_index = 0
+        self.ambient_sound = None  # --- NEW ---
+        try:
+            self.ambient_sound = pygame.mixer.Sound("assets/audios/ambience.ogg")
+            self.ambient_sound.set_volume(0.3)
+        except pygame.error as e:
+            print(f"Warning: could not load ambient sound: {e}")
 
     def load_level(self, level_data):
         puzzle_manager = PuzzleManager()
@@ -402,6 +527,11 @@ class LevelManager:
         terminal_files = level_data.get("terminal_files", {})
         terminal_scene = TerminalState(self.state_manager, puzzle_manager, level_data["puzzles"], terminal_files)
         self.state_manager.add_state("TERMINAL", terminal_scene)
+
+        # --- NEW: Start ambient sound on level load ---
+        if self.ambient_sound:
+            self.ambient_sound.stop()
+            self.ambient_sound.play(loops=-1)
 
     def start_new_game(self):
         self.current_level_index = 0
@@ -427,25 +557,42 @@ class LevelManager:
             print("All levels completed!")
             self.state_manager.set_state("WIN")
 
+
 class GameScene(BaseState):
     def __init__(self, state_manager, puzzle_manager, level_manager, level_data):
         super().__init__()
         self.state_manager = state_manager
         self.puzzle_manager = puzzle_manager
         self.level_manager = level_manager
+
+        # --- NEW: Effect managers ---
         self.glitch_manager = GlitchManager()
         self.camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.popup_manager = PopupManager()
+        self.particle_manager = ParticleManager()
+        self.lighting_manager = LightingManager(SCREEN_WIDTH, SCREEN_HEIGHT)
+
         self.show_map = False
         player_pos = level_data["player"]["start_pos"]
         self.player = Player(player_pos[0], player_pos[1])
 
+        # --- NEW: Screen flash properties ---
+        self.flash_alpha = 0
+        self.flash_duration = 0
+        self.flash_start_time = 0
+
+        # --- NEW: Sound effects ---
         self.hum_sound = None
+        self.powerup_sound = None
+        self.interact_sound = None
         try:
             self.hum_sound = pygame.mixer.Sound("assets/audios/hum.mp3")
             self.hum_sound.set_volume(0.2)
+            self.powerup_sound = pygame.mixer.Sound("assets/audios/powerup.wav")
+            self.interact_sound = pygame.mixer.Sound("assets/audios/interact.wav")
+            self.interact_sound.set_volume(0.5)
         except pygame.error as e:
-            print(f"Warning: Could not load hum sound: {e}")
+            print(f"Warning: Could not load game scene sounds: {e}")
 
         self.interactives = []
         for obj_data in level_data["objects"]:
@@ -470,13 +617,18 @@ class GameScene(BaseState):
             elif obj_type == "CorruptedDataLog":
                 self.interactives.append(CorruptedDataLog(x, y, w, h, obj_data["message"], image_path=image_path))
         self.walls = [Wall(w[0], w[1], w[2], w[3]) for w in level_data["walls"]]
-        self.flicker_timer = 0
         self.interaction_message = ""
+        self.active_interactive = None
+
+    def on_enter(self):  # --- NEW --- Snap camera on enter
+        self.camera.snap_to(self.player)
 
     def on_exit(self):
         self.player.stop_sound()
         if self.hum_sound:
             self.hum_sound.stop()
+        if self.level_manager.ambient_sound:
+            self.level_manager.ambient_sound.stop()
 
     def handle_events(self, events):
         for event in events:
@@ -485,29 +637,77 @@ class GameScene(BaseState):
                 if event.key == pygame.K_m: self.show_map = not self.show_map
 
     def try_interact(self):
-        for obj in self.interactives:
-            if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
-                obj.interact(self.state_manager, self.puzzle_manager)
-                return
+        if self.active_interactive:
+            self.active_interactive.interact(self.state_manager, self.puzzle_manager)
+
+    # --- NEW --- Method for screen flash
+    def trigger_screen_flash(self, max_alpha, duration_seconds):
+        self.flash_alpha = max_alpha
+        self.flash_duration = duration_seconds * 1000
+        self.flash_start_time = pygame.time.get_ticks()
 
     def update(self):
         self.player.update(self.walls)
         self.camera.update(self.player)
         self.glitch_manager.update()
         self.popup_manager.update()
+        self.particle_manager.update()
+
+        # --- NEW --- Only update lighting if power is NOT restored
+        if not self.puzzle_manager.get_state("power_restored"):
+            self.lighting_manager.update(self.player.rect, self.camera)
+
+        # Update flash effect
+        if self.flash_alpha > 0:
+            elapsed = pygame.time.get_ticks() - self.flash_start_time
+            if elapsed >= self.flash_duration:
+                self.flash_alpha = 0
+            else:
+                # Fade out
+                self.flash_alpha = 255 * (1 - (elapsed / self.flash_duration))
+
+        # Update interaction prompt and find active object
+        self.active_interactive = None
         prompt = ""
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
                 prompt = obj.get_interaction_message(self.puzzle_manager)
+                self.active_interactive = obj
                 break
         self.interaction_message = prompt
 
     def draw(self, surface):
-        self.flicker_timer = (self.flicker_timer + 1) % 60
-        surface.fill(DARK_GRAY if self.flicker_timer < 50 else DARK_PURPLE)
-        for entity in self.walls + self.interactives: entity.draw(surface, self.camera, self.puzzle_manager)
+        surface.fill(DARK_GRAY)
+
+        # Draw world objects
+        for entity in self.walls + self.interactives:
+            # --- NEW: Pulsating glow for active interactive object ---
+            if entity is self.active_interactive:
+                glow_radius = int(max(entity.rect.width, entity.rect.height) * 0.75)
+                glow_alpha = (math.sin(pygame.time.get_ticks() * 0.005) + 1) / 2 * 100 + 50  # Pulse from 50 to 150
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*AMBER, int(glow_alpha)), (glow_radius, glow_radius), glow_radius)
+                glow_rect = glow_surf.get_rect(center=entity.rect.center)
+                surface.blit(glow_surf, camera.apply(glow_rect), special_flags=pygame.BLEND_RGBA_ADD)
+
+            entity.draw(surface, self.camera, self.puzzle_manager)
+
         self.player.draw(surface, self.camera)
+        self.particle_manager.draw(surface, self.camera)
+
+        # --- MODIFIED: Draw lighting only when power is out ---
+        if not self.puzzle_manager.get_state("power_restored"):
+            self.lighting_manager.draw(surface)
+
         self.glitch_manager.draw(surface)
+
+        # Draw screen flash if active
+        if self.flash_alpha > 0:
+            flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            flash_surface.fill((255, 255, 255, self.flash_alpha))
+            surface.blit(flash_surface, (0, 0))
+
+        # UI elements on top
         self.popup_manager.draw(surface)
         if self.interaction_message:
             prompt_text = UI_FONT.render(self.interaction_message, True, WHITE)
@@ -548,6 +748,7 @@ class GameScene(BaseState):
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
 
+
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
         super().__init__()
@@ -562,6 +763,13 @@ class TerminalState(BaseState):
         self.typewriter_effect = {"text": "", "pos": 0, "surf": None, "start_time": 0, "lines": []}
         self.command_history = []
         self.history_index = -1
+        # --- NEW --- Typing sound
+        self.typing_sound = None
+        try:
+            self.typing_sound = pygame.mixer.Sound("assets/audios/type.wav")
+            self.typing_sound.set_volume(0.6)
+        except pygame.error as e:
+            print(f"Warning: Could not load typing sound: {e}")
 
     def on_enter(self):
         self.input_text = ""
@@ -632,6 +840,7 @@ class TerminalState(BaseState):
                         self.input_text = ""
                 else:
                     self.input_text += event.unicode
+                    if self.typing_sound: self.typing_sound.play()  # Play sound on key press
 
     def process_command(self):
         full_command = self.input_text.lower().strip()
@@ -696,7 +905,6 @@ class TerminalState(BaseState):
             if len(parts) > 1:
                 filename = parts[1]
                 if filename in self.files:
-
                     max_width = SCREEN_WIDTH - 40
                     wrapped_text = []
                     for line in self.files[filename].split('\n'):
@@ -715,6 +923,8 @@ class TerminalState(BaseState):
     def update(self):
         self.cursor_timer = (self.cursor_timer + 1) % FPS
         self.cursor_visible = self.cursor_timer < FPS // 2
+
+        # --- MODIFIED: Play sound with typewriter effect ---
         if self.typewriter_effect["lines"]:
             effect = self.typewriter_effect
             elapsed_lines = int((time.time() - effect["start_time"]) * 4)
@@ -722,6 +932,7 @@ class TerminalState(BaseState):
                 if effect["lines"]:
                     next_line = effect["lines"].pop(0)
                     self.output_lines.append(TERMINAL_FONT.render(next_line, True, GREEN))
+                    if self.typing_sound: self.typing_sound.play()  # Play sound for each new line
             if not effect["lines"]:
                 self.typewriter_effect["lines"] = []
         elif self.typewriter_effect["text"]:
@@ -729,6 +940,7 @@ class TerminalState(BaseState):
             elapsed = (time.time() - effect["start_time"]) * 30
             new_pos = min(len(effect["text"]), int(elapsed))
             if new_pos > effect["pos"]:
+                if self.typing_sound and effect["text"][new_pos - 1] != ' ': self.typing_sound.play()
                 effect["pos"] = new_pos
                 rendered_text = TERMINAL_FONT.render(effect["text"][:effect["pos"]], True, GREEN)
                 effect["surf"].fill((0, 0, 0, 0))
@@ -751,6 +963,7 @@ class TerminalState(BaseState):
                 cursor_rect = pygame.Rect(cursor_x + 2, y_pos, 10, TERMINAL_FONT.get_height())
                 pygame.draw.rect(surface, GREEN, cursor_rect)
 
+
 class WinState(BaseState):
     def __init__(self):
         super().__init__()
@@ -758,6 +971,7 @@ class WinState(BaseState):
         self.win_rect = self.win_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
 
     def draw(self, surface): surface.fill(BLACK); surface.blit(self.win_text, self.win_rect)
+
 
 class CutsceneState(BaseState):
     def __init__(self, state_manager, video_path, next_state):
@@ -836,6 +1050,7 @@ class CutsceneState(BaseState):
                     self.finished = True
             surface.blit(self.skip_text, self.skip_rect)
 
+
 class MenuState(BaseState):
     def __init__(self, state_manager, level_manager):
         super().__init__()
@@ -859,6 +1074,10 @@ class MenuState(BaseState):
         except pygame.error as e:
             print(f"Warning: Could not load background image 'assets/cet.png': {e}")
 
+    def on_exit(self):
+        if self.level_manager.ambient_sound:
+            self.level_manager.ambient_sound.stop()
+
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -866,7 +1085,6 @@ class MenuState(BaseState):
                     if rect.collidepoint(event.pos):
                         self.handle_button_click(text)
             if event.type == pygame.KEYDOWN:
-
                 level_keys = {
                     pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2,
                     pygame.K_4: 3, pygame.K_5: 4
@@ -900,6 +1118,7 @@ class MenuState(BaseState):
             color = AMBER if rect.collidepoint(mouse_pos) else WHITE
             text_surf = BUTTON_FONT.render(text, True, color)
             surface.blit(text_surf, rect)
+
 
 class InstructionsState(BaseState):
     def __init__(self, state_manager):
@@ -951,6 +1170,10 @@ class InstructionsState(BaseState):
         back_text = BUTTON_FONT.render("[ Back ]", True, color)
         surface.blit(back_text, self.back_button_rect)
 
+
+# --- LEVEL DATA (SAME AS BEFORE) ---
+
+# Level 1: Original
 level_1_data = {
     "player": {"start_pos": (600, 400)},
     "walls": [(0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
@@ -976,6 +1199,7 @@ level_1_data = {
     }
 }
 
+# Level 2: Original
 level_2_data = {
     "player": {"start_pos": (100, 100)},
     "walls": [(0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
@@ -1000,6 +1224,7 @@ level_2_data = {
     }
 }
 
+# Level 3: Original
 level_3_data = {
     "player": {"start_pos": (100, SCREEN_HEIGHT / 2)},
     "walls": [
@@ -1042,12 +1267,13 @@ level_3_data = {
     }
 }
 
+# Level 4: The Archive Maze
 level_4_data = {
     "player": {"start_pos": (60, 60)},
     "walls": [
         (0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
         (0, SCREEN_HEIGHT - 10, SCREEN_WIDTH, 10),
-
+        # Maze walls (server racks)
         (150, 10, 10, 500), (300, 200, 10, 510), (450, 10, 10, 500),
         (600, 200, 10, 510), (750, 10, 10, 500), (900, 200, 10, 510),
         (1050, 10, 10, 500), (220, 150, 900, 10)
@@ -1060,7 +1286,7 @@ level_4_data = {
         {"type": "NoticeBoard", "x": 500, "y": 350, "w": 100, "h": 80,
          "message": "The numbers are the key. The key is the sequence. Do not deviate from the path.",
          "image": "assets/notice.png"},
-
+        # Puzzles with test answers 1, 2, 3
         {"type": "PuzzleTerminal", "x": 200, "y": 50, "w": 80, "h": 120, "name": "Data Node Alpha", "puzzle_key": "p1",
          "image": "assets/puzzle_terminal_2.png"},
         {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Logic Gate Beta", "puzzle_key": "p2",
@@ -1073,7 +1299,8 @@ level_4_data = {
                "answer": "1"},
         "p2": {"id": "sgpa_riddle", "question": "Two paths diverge. One true, one false. The core of all decisions.",
                "answer": "2"},
-        "p3": {"id": "landmark_riddle", "question": "Three points define a plane. The trinity of logic. The end of the beginning.",
+        "p3": {"id": "landmark_riddle",
+               "question": "Three points define a plane. The trinity of logic. The end of the beginning.",
                "answer": "3"}
     },
     "terminal_files": {
@@ -1081,31 +1308,35 @@ level_4_data = {
     }
 }
 
+# Level 5: The Central Hub
 level_5_data = {
     "player": {"start_pos": (60, SCREEN_HEIGHT / 2)},
     "walls": [
         (0, 0, SCREEN_WIDTH, 10), (0, 0, 10, SCREEN_HEIGHT), (SCREEN_WIDTH - 10, 0, 10, SCREEN_HEIGHT),
         (0, SCREEN_HEIGHT - 10, SCREEN_WIDTH, 10),
-
+        # Central room
         (400, 200, 480, 10), (400, 500, 480, 10),
         (400, 200, 10, 310), (880, 200, 10, 150), (880, 400, 10, 110)
     ],
     "objects": [
         {"type": "PowerCable", "x": 1100, "y": 600, "w": 200, "h": 90, "image": "assets/cables.png"},
-
+        # Door is inside the central room
         {"type": "Door", "x": 800, "y": 280, "w": 80, "h": 180, "image_locked": "assets/door_locked.png",
          "image_unlocked": "assets/door_unlocked.png"},
-
+        # Terminal is inside the central room
         {"type": "Terminal", "x": 450, "y": 300, "w": 120, "h": 120, "image": "assets/terminal.png"},
         {"type": "CorruptedDataLog", "x": 50, "y": 50, "w": 90, "h": 70,
          "message": "They aren't puzzles... they are authentication nodes. My access level keeps resetting. Why? Who is resetting it?",
          "image": "assets/data_log.png"},
-
-        {"type": "PuzzleTerminal", "x": 200, "y": 100, "w": 80, "h": 120, "name": "Monitor Station 1", "puzzle_key": "p1",
+        # Puzzle terminals are outside, like monitoring stations
+        {"type": "PuzzleTerminal", "x": 200, "y": 100, "w": 80, "h": 120, "name": "Monitor Station 1",
+         "puzzle_key": "p1",
          "image": "assets/puzzle_terminal_2.png"},
-        {"type": "PuzzleTerminal", "x": 640, "y": 600, "w": 90, "h": 70, "name": "Monitor Station 2", "puzzle_key": "p2",
+        {"type": "PuzzleTerminal", "x": 640, "y": 600, "w": 90, "h": 70, "name": "Monitor Station 2",
+         "puzzle_key": "p2",
          "image": "assets/puzzle_terminal_1.png"},
-        {"type": "PuzzleTerminal", "x": 1100, "y": 100, "w": 130, "h": 90, "name": "Monitor Station 3", "puzzle_key": "p3",
+        {"type": "PuzzleTerminal", "x": 1100, "y": 100, "w": 130, "h": 90, "name": "Monitor Station 3",
+         "puzzle_key": "p3",
          "image": "assets/puzzle_terminal_3.png"},
     ],
     "puzzles": {
@@ -1118,6 +1349,7 @@ level_5_data = {
         "surveillance_report.txt": "Subject deviates from expected path. Interaction with node 1 logged at timestamp 7439.88. Subject appears confused. Emotional state: Agitated. Recalibrating escape probability... 41.3%. Further observation required."
     }
 }
+
 
 def main():
     pygame.init()
@@ -1138,6 +1370,7 @@ def main():
     game_state_manager.add_state("CUTSCENE", intro_cutscene)
     game_state_manager.add_state("WIN", WinState())
 
+    # Set the initial state to the main menu
     game_state_manager.set_state("MENU")
 
     running = True
@@ -1155,6 +1388,7 @@ def main():
         clock.tick(FPS)
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
