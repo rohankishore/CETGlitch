@@ -1000,6 +1000,7 @@ class MenuState(BaseState):
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
         self.button_texts = ["> Start Game", "> Instructions", "> Settings", "> GitHub", "> Quit"]
         self.buttons, self.github_url = {}, "https://github.com/rohankishore/CETGlitch"
+
         self.glitch_timer, self.glitch_offset = 0, (0, 0)
 
         self.fade_alpha = 255
