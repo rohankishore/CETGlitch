@@ -945,7 +945,7 @@ class TerminalState(BaseState):
             self.add_output(f"Command not recognized: '{command}'."); assets.play_sound("terminal_error")
 
     def finish_typewriter(self):
-        self.output_lines.extend(self.typewriter_effect["lines"]);
+        self.output_lines.extend(self.typewriter_effect["lines"])
         self.typewriter_effect["lines"] = []
 
     def update(self):
@@ -956,7 +956,7 @@ class TerminalState(BaseState):
             self.transition_alpha = min(255, self.transition_alpha + 15)
             if self.transition_alpha == 255: self.state_manager.set_state("GAME")
         if self.transition_state != 'active': return
-        self.cursor_timer = (self.cursor_timer + 1) % FPS;
+        self.cursor_timer = (self.cursor_timer + 1) % FPS
         self.cursor_visible = self.cursor_timer < FPS // 2
         if self.typewriter_effect["lines"]:
             effect = self.typewriter_effect
