@@ -967,7 +967,7 @@ class TerminalState(BaseState):
         text_surf = TERMINAL_FONT.render(text, True, color)
         blur_surf = TERMINAL_FONT.render(text, True, tuple(c * 0.5 for c in color))
         blur_surf.set_alpha(100)
-        surface.blit(blur_surf, (pos[0] + 1, pos[1] + 1));
+        surface.blit(blur_surf, (pos[0] + 1, pos[1] + 1))
         surface.blit(blur_surf, (pos[0] - 1, pos[1] - 1))
         surface.blit(text_surf, pos)
 
@@ -986,7 +986,7 @@ class TerminalState(BaseState):
                 cursor_x = 20 + TERMINAL_FONT.size(prompt_text)[0]
                 pygame.draw.rect(surface, GREEN, pygame.Rect(cursor_x + 2, y_pos, 10, TERMINAL_FONT.get_height()))
         if self.transition_alpha > 0:
-            fade_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT));
+            fade_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
             fade_surf.fill(BLACK);
             fade_surf.set_alpha(self.transition_alpha)
             surface.blit(fade_surf, (0, 0))
