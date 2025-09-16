@@ -872,6 +872,7 @@ class TerminalState(BaseState):
                 self.puzzle_manager.set_state("door_unlocked", True)
                 assets.play_sound("override_success")
 
+
             else:
                 self.add_output("ERROR: Insufficient privileges. Level 3 required.")
                 assets.play_sound(
