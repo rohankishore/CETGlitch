@@ -1348,6 +1348,10 @@ class SettingsState(BaseState):
             center=(SCREEN_WIDTH // 2, slider_y)
         )
 
+        self.voice_toggle_button_rect = BUTTON_FONT.render("placeholder", True, WHITE).get_rect(
+            center=(SCREEN_WIDTH // 2, slider_y + 80)  # Position it below the map toggle
+        )
+
         self.dragging_slider = None
 
     def handle_events(self, events):
