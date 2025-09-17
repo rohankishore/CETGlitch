@@ -1,7 +1,7 @@
 {
-    "master_volume": 1.0,
-    "music_volume": 0.8425,
+    "master_volume": 0.89,
+    "music_volume": 0.7175,
     "sfx_volume": 1.0,
-    "show_map_on_start": false,
-    "show_map": "False"
+    "show_map_on_start": true,
+    "enable_voice_narration": true
 }

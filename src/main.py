@@ -256,6 +256,7 @@ class PopupManager:
 
     def add_popup(self, text, duration_seconds):
         assets.play_sound("popup")
+        voice_manager.speak(text)
         end_time = pygame.time.get_ticks() + duration_seconds * 1000
         lines = []
         words = text.split(' ')
@@ -1083,6 +1084,7 @@ class TerminalState(BaseState):
         elif command == "status":
             priv, door = self.puzzle_manager.get_state('privilege_level'), "UNLOCKED" if self.puzzle_manager.get_state(
                 "door_unlocked") else "LOCKED"
+            voice_manager.speak(f"Privilege: {priv}/3. Main Door: {door}. Network: OFFLINE.")
             self.add_output(f"Privilege: {priv}/3. Main Door: {door}. Network: OFFLINE.")
 
         elif command == "clear":
@@ -1090,6 +1092,7 @@ class TerminalState(BaseState):
         elif command == "unlock":
             if self.puzzle_manager.get_state('privilege_level') >= 3:
                 self.add_output("Privilege accepted. Unlocking door...")
+                voice_manager.speak("Access granted. Door unlocked.")
                 self.puzzle_manager.set_state("door_unlocked", True)
                 assets.play_sound("override_success")
             else:
@@ -1633,10 +1636,11 @@ level_5_data = {
 
 
 def main():
-    global assets, settings
+    global assets, settings, voice_manager
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     settings = SettingsManager()
     assets = AssetManager()
+    voice_manager = VoiceManager()
 
     pygame.display.set_caption("CET Glitch")
     clock = pygame.time.Clock()
