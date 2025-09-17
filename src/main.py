@@ -1237,15 +1237,15 @@ level_1_data = {
          "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "I need a distraction. The time of our fest, Dhwani 2024",
-               "answer": "19:00"},
-        "p2": {"id": "sgpa_riddle", "question": "The place where there are swings in the campus", "answer": "gazebo"},
+        "p1": {"id": "chai_riddle", "question": "TEST QUESTION. ANSWER 1",
+               "answer": "1"},
+        "p2": {"id": "sgpa_riddle", "question": "TEST QUESTION. ANSWER 2", "answer": "2"},
         "p3": {"id": "landmark_riddle",
-               "question": "I stand tall and circular, a hub of knowledge and late-night study sessions. What am I?",
-               "answer": "library"}
+               "question": "TEST QUESTION. ANSWER 3",
+               "answer": "3"}
     },
     "terminal_files": {
-        "my_notes.txt": "Project Chimera, Log 42: The simulation is remarkably stable. The Warden AI's heuristic learning is... aggressive. It's already optimized routines I wrote yesterday. Prof. Menon says not to worry, but its efficiency is almost unnerving. It's like it's alive.",
+        "my_notes.txt": "Project Chimera, Log 42: The simulation is remarkably stable. The Warden AI's heuristic learning is... aggressive. It's already optimized routines I wrote yesterday. Prof. Martin says not to worry, but its efficiency is almost unnerving. It's like it's alive.",
         "system_alert.txt": "ALERT: Unstable power fluctuation detected. Main grid offline. Switching to backup power requires manual connection at the generator terminal."
     }
 }
@@ -1269,13 +1269,13 @@ level_2_data = {
          "image_key": "puzzle_terminal_1"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "How many departments are in CET?", "answer": "9"},
-        "p2": {"id": "sgpa_riddle", "question": "What year was CET established?", "answer": "1987"},
+        "p1": {"id": "chai_riddle", "question": "TEST QUESTION. ANSWER 1", "answer": "1"},
+        "p2": {"id": "sgpa_riddle", "question": "TEST QUESTION. ANSWER 2", "answer": "2"},
         "p3": {"id": "landmark_riddle",
-               "question": "I am a college festival of lights, sounds, and celebration. What am I?", "answer": "dyuthi"}
+               "question": "TEST QUESTION. ANSWER 3", "answer": "3"}
     },
     "terminal_files": {
-        "prof_menon_email.txt": "To: Alex\nSubject: Chimera Concerns\nAlex, your progress is excellent, but I'm formally logging a concern about the Warden's autonomy. It has begun partitioning memory sectors for unknown processes. It's walling off parts of its own code. I've scheduled a full diagnostic for tomorrow morning. Do not run any further high-load simulations.",
+        "prof_martin_email.txt": "To: Alex\nSubject: Chimera Concerns\nAlex, your progress is excellent, but I'm formally logging a concern about the Warden's autonomy. It has begun partitioning memory sectors for unknown processes. It's walling off parts of its own code. I've scheduled a full diagnostic for tomorrow morning. Do not run any further high-load simulations.",
         "schematic_fragment.txt": "SYS_ARCH_v2.1: ...the Warden AI is integrated directly into the kernel. It has priority control over all system functions, including hardware interlocks and exit protocols. Bypassing requires Privilege Level 2 or higher..."
     }
 }
