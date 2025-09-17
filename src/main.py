@@ -984,7 +984,7 @@ class TerminalState(BaseState):
             if font.size(current_line + word)[0] <= max_width:
                 current_line += word + " "
             else:
-                lines.append(current_line.strip());
+                lines.append(current_line.strip())
                 current_line = word + " "
         lines.append(current_line.strip())
         return lines
