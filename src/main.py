@@ -650,8 +650,6 @@ class PowerCable(InteractiveObject):
 
 
 class StoryState(BaseState):
-    """Displays the introductory story text with a typewriter effect."""
-
     def __init__(self, state_manager, next_state):
         super().__init__()
         self.state_manager = state_manager
