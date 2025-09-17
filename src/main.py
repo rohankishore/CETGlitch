@@ -72,7 +72,6 @@ class VoiceManager:
 
 
 def wrap_text(text, font, max_width):
-    """Wraps a single line of text to a given width."""
     words = text.split(' ')
     lines = []
     current_line = ""
