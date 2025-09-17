@@ -34,7 +34,6 @@ BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
-
 def wrap_text(text, font, max_width):
     """Wraps a single line of text to a given width."""
     words = text.split(' ')
@@ -49,7 +48,6 @@ def wrap_text(text, font, max_width):
             current_line = word + " "
     lines.append(current_line.strip())
     return lines
-
 
 class SettingsManager:
 
@@ -86,7 +84,6 @@ class SettingsManager:
     def reset_to_defaults(self):
         self.settings = self.defaults.copy()
         self.save_settings()
-
 
 class AssetManager:
 
@@ -151,10 +148,8 @@ class AssetManager:
         sound.set_volume(final_vol)
         sound.play(loops=loops, fade_ms=fade_ms)
 
-
 assets = None
 settings = None
-
 
 class PopupManager:
 
@@ -199,7 +194,6 @@ class PopupManager:
         for popup in self.popups:
             surface.blit(popup['surface'], popup['rect'])
 
-
 class GameStateManager:
     def __init__(self, initial_state):
         self.states = {}
@@ -221,7 +215,6 @@ class GameStateManager:
 
     def draw(self, surface): self.current_state.draw(surface)
 
-
 class BaseState:
     def __init__(self): pass
 
@@ -235,7 +228,6 @@ class BaseState:
     def update(self): pass
 
     def draw(self, surface): pass
-
 
 class GlitchManager:
     def __init__(self):
@@ -257,63 +249,54 @@ class GlitchManager:
         self.active = bool(self.glitches)
 
         if self.active:
-            # Gradually increase/decrease glitch intensity
+
             max_intensity = max(g['intensity'] for g in self.glitches)
 
-            # Chromatic aberration intensity related to overall glitch intensity
             self.chromatic_offset_x = random.randint(-max_intensity // 5,
                                                      max_intensity // 5) if random.random() < 0.7 else 0
             self.chromatic_offset_y = random.randint(-max_intensity // 5,
                                                      max_intensity // 5) if random.random() < 0.7 else 0
 
-            # Scanline alpha also related to intensity
-            self.scanline_alpha = min(100, max_intensity * 5)  # Max alpha 100
+            self.scanline_alpha = min(100, max_intensity * 5)
         else:
             self.chromatic_offset_x = 0
             self.chromatic_offset_y = 0
-            self.scanline_alpha = max(0, self.scanline_alpha - 5)  # Fade out scanlines
+            self.scanline_alpha = max(0, self.scanline_alpha - 5)
 
     def draw(self, surface):
-        if not self.active and self.scanline_alpha == 0: return  # Only draw if active or scanlines are fading
+        if not self.active and self.scanline_alpha == 0: return
 
-        # Apply Chromatic Aberration
         if self.chromatic_offset_x != 0 or self.chromatic_offset_y != 0:
             temp_surf = surface.copy()
-            surface.fill(BLACK)  # Clear the original surface
-            # Blit slightly offset copies
-            # Red channel (or one arbitrary color channel)
+            surface.fill(BLACK)
+
             surface.blit(temp_surf, (self.chromatic_offset_x, self.chromatic_offset_y),
                          special_flags=pygame.BLEND_RGB_ADD)
-            # Blue channel (or another)
+
             surface.blit(temp_surf, (-self.chromatic_offset_x, -self.chromatic_offset_y),
                          special_flags=pygame.BLEND_RGB_SUB)
-            # You might want to blit the original without offset last, or experiment with this.
-            # surface.blit(temp_surf, (0,0)) # Re-blit original on top after color shifts
 
-        # Apply original pixel displacement glitch (only if truly active)
         if self.active:
             intensity = max(g['intensity'] for g in self.glitches) if self.glitches else 0
-            for _ in range(intensity // 3):  # Reduce number of slices for performance
+            for _ in range(intensity // 3):
                 slice_height = random.randint(1, 3)
                 y = random.randint(0, SCREEN_HEIGHT - slice_height)
                 slice_rect = pygame.Rect(0, y, SCREEN_WIDTH, slice_height)
-                if not surface.get_locked():  # Check to prevent error if surface is locked
+                if not surface.get_locked():
                     try:
                         subsurface = surface.subsurface(slice_rect).copy()
-                        offset = random.randint(-15, 15)  # Slightly smaller offsets for more subtle look
+                        offset = random.randint(-15, 15)
                         surface.blit(subsurface, (offset, y))
                     except ValueError:
-                        # This can happen if the subsurface rect is invalid, just skip
+
                         pass
 
-                        # Apply Scanlines
         if self.scanline_alpha > 0:
             scanline_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            for y in range(0, SCREEN_HEIGHT, 4):  # Draw thin dark lines
-                pygame.draw.line(scanline_surf, (0, 0, 0, 50), (0, y), (SCREEN_WIDTH, y))  # Dark, semi-transparent
+            for y in range(0, SCREEN_HEIGHT, 4):
+                pygame.draw.line(scanline_surf, (0, 0, 0, 50), (0, y), (SCREEN_WIDTH, y))
             scanline_surf.set_alpha(self.scanline_alpha)
             surface.blit(scanline_surf, (0, 0))
-
 
 class Camera:
     def __init__(self, width, height):
@@ -343,7 +326,6 @@ class Camera:
                 y += random.randint(-self.shake_intensity, self.shake_intensity)
         self.rect.topleft = (x, y)
 
-
 class PuzzleManager:
     def __init__(self):
         self.state = {
@@ -362,7 +344,6 @@ class PuzzleManager:
         self.state["privilege_level"] += 1
         print(f"[PuzzleManager] Privilege level increased to: {self.state['privilege_level']}")
 
-
 class Entity(pygame.sprite.Sprite):
     def __init__(self, x, y, w, h, name="", image=None):
         super().__init__()
@@ -378,29 +359,23 @@ class Entity(pygame.sprite.Sprite):
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
 
-
 class Player(Entity):
     def __init__(self, x, y):
-        size = 32  # The diameter of our player circle
+        size = 32
         super().__init__(x, y, size, size, name="player")
 
         self.animation_timer = 0
-        self.animation_speed = 0.2  # How fast the bobbing is
-        self.bob_height = 2  # How much it bobs up and down (pixels)
-        #self.image = self.base_image  # Current image, initialized to base
+        self.animation_speed = 0.2
+        self.bob_height = 2
 
         self.speed = 5
         self.dx, self.dy = 0, 0
         self.is_walking = False
 
-        # Create a new square surface that supports transparency (SRCALPHA)
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
 
-        # Draw a circle onto the new transparent surface.
-        # The circle will be centered and will fill the surface.
         pygame.draw.circle(self.image, CYAN, (size // 2, size // 2), size // 2)
 
-        # The rest of the player's properties remain the same
         self.speed = 5
         self.dx, self.dy = 0, 0
         self.is_walking = False
@@ -415,12 +390,11 @@ class Player(Entity):
             self.animation_timer += self.animation_speed
             offset_y = int(math.sin(self.animation_timer) * self.bob_height)
 
-            # Create a new surface to blit the base image with offset
             animated_image = pygame.Surface(self.base_image.get_size(), pygame.SRCALPHA)
-            animated_image.blit(self.base_image, (0, offset_y))  # Apply vertical offset
+            animated_image.blit(self.base_image, (0, offset_y))
             self.image = animated_image
         else:
-            self.animation_timer = 0  # Reset timer when not walking
+            self.animation_timer = 0
             self.image = self.base_image
 
     def get_input(self):
@@ -466,17 +440,14 @@ class Player(Entity):
     def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
 
-
 class Wall(Entity):
     def __init__(self, x, y, w, h):
         super().__init__(x, y, w, h, "wall")
-
 
 class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
-
 
 class NoticeBoard(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
@@ -489,7 +460,6 @@ class NoticeBoard(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
 
-
 class CorruptedDataLog(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
         super().__init__(x, y, w, h, "corrupted data log", image=image)
@@ -501,7 +471,6 @@ class CorruptedDataLog(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 5)
         game_state_manager.current_state.glitch_manager.trigger_glitch(500, 10)
-
 
 class PuzzleTerminal(InteractiveObject):
     def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image=None):
@@ -516,7 +485,6 @@ class PuzzleTerminal(InteractiveObject):
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
             game_state_manager.current_state.popup_manager.add_popup(
                 f"{self.question} The answer is the override code.", 8)
-
 
 class Door(InteractiveObject):
     def __init__(self, x, y, w, h, image_locked=None, image_unlocked=None):
@@ -543,7 +511,6 @@ class Door(InteractiveObject):
             color = BRIGHT_GREEN if is_unlocked else DARK_PURPLE
             pygame.draw.rect(surface, color, camera.apply(self.rect))
 
-
 class Terminal(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
         super().__init__(x, y, w, h, "old terminal", image=image)
@@ -557,7 +524,6 @@ class Terminal(InteractiveObject):
             game_state_manager.set_state("TERMINAL")
         else:
             game_state_manager.current_state.popup_manager.add_popup("No power to the terminal.", 2)
-
 
 class PowerCable(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
@@ -575,7 +541,6 @@ class PowerCable(InteractiveObject):
             game_state_manager.current_state.glitch_manager.trigger_glitch(1000, 15)
             game_state_manager.current_state.camera.start_shake(1000, 5)
             assets.play_sound("hum", loops=-1)
-
 
 class StoryState(BaseState):
     """Displays the introductory story text with a typewriter effect."""
@@ -663,7 +628,6 @@ class StoryState(BaseState):
         prompt_rect = self.skip_prompt.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
         surface.blit(self.skip_prompt, prompt_rect)
 
-
 class LevelIntroState(BaseState):
     """Displays story text before a level starts."""
 
@@ -741,7 +705,6 @@ class LevelIntroState(BaseState):
                 story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
                 surface.blit(story_surf, story_rect)
 
-
 class LevelManager:
     def __init__(self, state_manager):
         self.state_manager = state_manager
@@ -779,7 +742,6 @@ class LevelManager:
             self.load_level(self.levels[self.current_level_index])
         else:
             self.state_manager.set_state("WIN")
-
 
 class GameScene(BaseState):
     def __init__(self, state_manager, puzzle_manager, level_manager, level_data, level_title):
@@ -886,7 +848,6 @@ class GameScene(BaseState):
             pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
-
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
@@ -1067,7 +1028,6 @@ class TerminalState(BaseState):
             fade_surf.set_alpha(self.transition_alpha)
             surface.blit(fade_surf, (0, 0))
 
-
 class MenuState(BaseState):
 
     def __init__(self, state_manager, level_manager):
@@ -1148,7 +1108,6 @@ class MenuState(BaseState):
             self.fade_surface.set_alpha(self.fade_alpha)
             surface.blit(self.fade_surface, (0, 0))
 
-
 class InstructionsState(BaseState):
     def __init__(self, state_manager):
         super().__init__()
@@ -1183,7 +1142,6 @@ class InstructionsState(BaseState):
         for surf, rect in self.rendered_lines: surface.blit(surf, rect)
         color = AMBER if self.back_button_rect.collidepoint(pygame.mouse.get_pos()) else WHITE
         surface.blit(BUTTON_FONT.render("[ Back ]", True, color), self.back_button_rect)
-
 
 class SettingsState(BaseState):
     def __init__(self, state_manager, settings_manager):
@@ -1289,7 +1247,6 @@ class SettingsState(BaseState):
         reset_text = BUTTON_FONT.render("[ Reset ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
 
-
 class WinState(BaseState):
     def __init__(self):
         super().__init__()
@@ -1323,7 +1280,6 @@ class WinState(BaseState):
 
         prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
         surface.blit(self.prompt_text, prompt_rect)
-
 
 level_story_intros = [
     "My first priority is to restore backup power. The main lab terminal should have my research notes.",
@@ -1487,7 +1443,6 @@ level_5_data = {
         "surveillance_report.txt": "Subject deviates from expected path. Agitated. Recalibrating escape probability... 41.3%."}
 }
 
-
 def main():
     global assets, settings
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -1531,7 +1486,6 @@ def main():
         clock.tick(FPS)
 
     pygame.quit()
-
 
 if __name__ == "__main__":
     main()
