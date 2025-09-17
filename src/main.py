@@ -150,7 +150,8 @@ class SettingsManager:
             'master_volume': 0.8,
             'music_volume': 0.7,
             'sfx_volume': 1.0,
-            'show_map_on_start': True
+            'show_map_on_start': True,
+            'enable_voice_narration': True  # <-- ADD THIS LINE
         }
         self.settings = self.defaults.copy()
         self.load_settings()
