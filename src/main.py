@@ -1365,6 +1365,9 @@ class SettingsState(BaseState):
                 elif self.map_toggle_button_rect.collidepoint(event.pos):
                     current_value = self.settings.get('show_map_on_start')
                     self.settings.set('show_map_on_start', not current_value)
+                elif self.voice_toggle_button_rect.collidepoint(event.pos):
+                    current_value = self.settings.get('enable_voice_narration')
+                    self.settings.set('enable_voice_narration', not current_value)
                 else:
                     for slider in self.sliders:
                         if slider['rect'].collidepoint(event.pos):
@@ -1414,6 +1417,13 @@ class SettingsState(BaseState):
         map_toggle_surf = BUTTON_FONT.render(map_toggle_text_str, True, map_toggle_color)
         self.map_toggle_button_rect = map_toggle_surf.get_rect(center=(SCREEN_WIDTH // 2, 500))
         surface.blit(map_toggle_surf, self.map_toggle_button_rect)
+
+        is_on_voice = self.settings.get('enable_voice_narration')
+        voice_toggle_text_str = f"Voice Narration: {'ON' if is_on_voice else 'OFF'}"
+        voice_toggle_color = AMBER if self.voice_toggle_button_rect.collidepoint(mouse_pos) else WHITE
+        voice_toggle_surf = BUTTON_FONT.render(voice_toggle_text_str, True, voice_toggle_color)
+        self.voice_toggle_button_rect = voice_toggle_surf.get_rect(center=(SCREEN_WIDTH // 2, 580))  # Position it below
+        surface.blit(voice_toggle_surf, self.voice_toggle_button_rect)
 
         back_color = AMBER if self.back_button_rect.collidepoint(mouse_pos) else WHITE
         back_text = BUTTON_FONT.render("[ Back ]", True, back_color)
