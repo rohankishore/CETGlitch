@@ -36,17 +36,14 @@ BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
-
 class VoiceManager:
     def __init__(self):
         self.engine = None
         if pyttsx3:
             try:
                 self.engine = pyttsx3.init()
-                # Optional: Configure voice properties
-                # voices = self.engine.getProperty('voices')
-                # self.engine.setProperty('voice', voices[1].id) # Example: use a female voice if available
-                self.engine.setProperty('rate', 175)  # Speed of speech
+
+                self.engine.setProperty('rate', 175)
             except Exception as e:
                 print(f"Error initializing pyttsx3: {e}. Voice narration disabled.")
                 self.engine = None
@@ -62,17 +59,15 @@ class VoiceManager:
 
     def speak(self, text):
         """Speaks the given text if narration is enabled and the engine is ready."""
-        # Check if voice is enabled in settings and if the engine initialized correctly
+
         if self.engine and settings and settings.get('enable_voice_narration'):
-            # Stop any currently speaking narration before starting a new one
+
             if self.engine.isBusy():
                 self.engine.stop()
 
-            # Run the speech in a separate thread to avoid freezing the game
             thread = threading.Thread(target=self._speak_in_thread, args=(text,))
-            thread.daemon = True  # Allows the main program to exit even if the thread is running
+            thread.daemon = True
             thread.start()
-
 
 def wrap_text(text, font, max_width):
     """Wraps a single line of text to a given width."""
@@ -88,7 +83,6 @@ def wrap_text(text, font, max_width):
             current_line = word + " "
     lines.append(current_line.strip())
     return lines
-
 
 class WardenManager:
     def __init__(self, game_scene):
@@ -141,7 +135,6 @@ class WardenManager:
 
         self.game_scene.popup_manager.add_popup("WARNING: I/O stream corrupted by unknown process.", 3)
 
-
 class SettingsManager:
 
     def __init__(self, filepath='settings.json'):
@@ -151,7 +144,7 @@ class SettingsManager:
             'music_volume': 0.7,
             'sfx_volume': 1.0,
             'show_map_on_start': True,
-            'enable_voice_narration': True  # <-- ADD THIS LINE
+            'enable_voice_narration': True
         }
         self.settings = self.defaults.copy()
         self.load_settings()
@@ -178,7 +171,6 @@ class SettingsManager:
     def reset_to_defaults(self):
         self.settings = self.defaults.copy()
         self.save_settings()
-
 
 class AssetManager:
 
@@ -244,10 +236,8 @@ class AssetManager:
         sound.set_volume(final_vol)
         sound.play(loops=loops, fade_ms=fade_ms)
 
-
 assets = None
 settings = None
-
 
 class PopupManager:
 
@@ -293,7 +283,6 @@ class PopupManager:
         for popup in self.popups:
             surface.blit(popup['surface'], popup['rect'])
 
-
 class GameStateManager:
     def __init__(self, initial_state):
         self.states = {}
@@ -315,7 +304,6 @@ class GameStateManager:
 
     def draw(self, surface): self.current_state.draw(surface)
 
-
 class BaseState:
     def __init__(self): pass
 
@@ -329,7 +317,6 @@ class BaseState:
     def update(self): pass
 
     def draw(self, surface): pass
-
 
 class GlitchManager:
     def __init__(self):
@@ -400,7 +387,6 @@ class GlitchManager:
             scanline_surf.set_alpha(self.scanline_alpha)
             surface.blit(scanline_surf, (0, 0))
 
-
 class Camera:
     def __init__(self, width, height):
         self.rect = pygame.Rect(0, 0, width, height)
@@ -429,7 +415,6 @@ class Camera:
                 y += random.randint(-self.shake_intensity, self.shake_intensity)
         self.rect.topleft = (x, y)
 
-
 class PuzzleManager:
     def __init__(self):
         self.state = {
@@ -448,7 +433,6 @@ class PuzzleManager:
         self.state["privilege_level"] += 1
         print(f"[PuzzleManager] Privilege level increased to: {self.state['privilege_level']}")
 
-
 class Entity(pygame.sprite.Sprite):
     def __init__(self, x, y, w, h, name="", image=None):
         super().__init__()
@@ -463,7 +447,6 @@ class Entity(pygame.sprite.Sprite):
 
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
-
 
 class Player(Entity):
     def __init__(self, x, y):
@@ -546,17 +529,14 @@ class Player(Entity):
     def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
 
-
 class Wall(Entity):
     def __init__(self, x, y, w, h):
         super().__init__(x, y, w, h, "wall")
-
 
 class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
-
 
 class NoticeBoard(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
@@ -569,7 +549,6 @@ class NoticeBoard(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
 
-
 class CorruptedDataLog(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
         super().__init__(x, y, w, h, "corrupted data log", image=image)
@@ -581,7 +560,6 @@ class CorruptedDataLog(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 5)
         game_state_manager.current_state.glitch_manager.trigger_glitch(500, 10)
-
 
 class PuzzleTerminal(InteractiveObject):
     def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image=None):
@@ -596,7 +574,6 @@ class PuzzleTerminal(InteractiveObject):
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
             game_state_manager.current_state.popup_manager.add_popup(
                 f"{self.question} The answer is the override code.", 8)
-
 
 class Door(InteractiveObject):
     def __init__(self, x, y, w, h, image_locked=None, image_unlocked=None):
@@ -623,7 +600,6 @@ class Door(InteractiveObject):
             color = BRIGHT_GREEN if is_unlocked else DARK_PURPLE
             pygame.draw.rect(surface, color, camera.apply(self.rect))
 
-
 class Terminal(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
         super().__init__(x, y, w, h, "old terminal", image=image)
@@ -637,7 +613,6 @@ class Terminal(InteractiveObject):
             game_state_manager.set_state("TERMINAL")
         else:
             game_state_manager.current_state.popup_manager.add_popup("No power to the terminal.", 2)
-
 
 class PowerCable(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
@@ -655,7 +630,6 @@ class PowerCable(InteractiveObject):
             game_state_manager.current_state.glitch_manager.trigger_glitch(1000, 15)
             game_state_manager.current_state.camera.start_shake(1000, 5)
             assets.play_sound("hum", loops=-1)
-
 
 class StoryState(BaseState):
     """Displays the introductory story text with a typewriter effect."""
@@ -743,7 +717,6 @@ class StoryState(BaseState):
         prompt_rect = self.skip_prompt.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
         surface.blit(self.skip_prompt, prompt_rect)
 
-
 class LevelIntroState(BaseState):
     """Displays story text before a level starts."""
 
@@ -821,7 +794,6 @@ class LevelIntroState(BaseState):
                 story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
                 surface.blit(story_surf, story_rect)
 
-
 class LevelManager:
     def __init__(self, state_manager):
         self.state_manager = state_manager
@@ -859,7 +831,6 @@ class LevelManager:
             self.load_level(self.levels[self.current_level_index])
         else:
             self.state_manager.set_state("WIN")
-
 
 class GameScene(BaseState):
     def __init__(self, state_manager, puzzle_manager, level_manager, level_data, level_title):
@@ -973,7 +944,6 @@ class GameScene(BaseState):
             pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
-
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
@@ -1097,6 +1067,8 @@ class TerminalState(BaseState):
                 assets.play_sound("override_success")
             else:
                 self.add_output("ERROR: Insufficient privileges. Level 3 required.")
+                voice_manager.speak("ERROR: Insufficient privileges. Level 3 required.")
+
                 assets.play_sound(
                     "terminal_error")
         elif command == "override":
@@ -1109,6 +1081,7 @@ class TerminalState(BaseState):
                             self.puzzle_manager.set_state(f"{puzzle['id']}_solved", True)
                             self.puzzle_manager.increment_privilege()
                             self.add_output("Override code accepted. Privilege level increased.")
+                            voice_manager.speak("Override code accepted. Privilege level increased.")
                             assets.play_sound("override_success")
 
                             self.update_prompt()
@@ -1200,7 +1173,6 @@ class TerminalState(BaseState):
             fade_surf.set_alpha(self.transition_alpha)
             surface.blit(fade_surf, (0, 0))
 
-
 class MenuState(BaseState):
 
     def __init__(self, state_manager, level_manager):
@@ -1281,7 +1253,6 @@ class MenuState(BaseState):
             self.fade_surface.set_alpha(self.fade_alpha)
             surface.blit(self.fade_surface, (0, 0))
 
-
 class InstructionsState(BaseState):
     def __init__(self, state_manager):
         super().__init__()
@@ -1317,7 +1288,6 @@ class InstructionsState(BaseState):
         color = AMBER if self.back_button_rect.collidepoint(pygame.mouse.get_pos()) else WHITE
         surface.blit(BUTTON_FONT.render("[ Back ]", True, color), self.back_button_rect)
 
-
 class SettingsState(BaseState):
     def __init__(self, state_manager, settings_manager):
         super().__init__()
@@ -1352,7 +1322,7 @@ class SettingsState(BaseState):
         )
 
         self.voice_toggle_button_rect = BUTTON_FONT.render("placeholder", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2, slider_y + 80)  # Position it below the map toggle
+            center=(SCREEN_WIDTH // 2, slider_y + 80)
         )
 
         self.dragging_slider = None
@@ -1425,7 +1395,7 @@ class SettingsState(BaseState):
         voice_toggle_text_str = f"Voice Narration: {'ON' if is_on_voice else 'OFF'}"
         voice_toggle_color = AMBER if self.voice_toggle_button_rect.collidepoint(mouse_pos) else WHITE
         voice_toggle_surf = BUTTON_FONT.render(voice_toggle_text_str, True, voice_toggle_color)
-        self.voice_toggle_button_rect = voice_toggle_surf.get_rect(center=(SCREEN_WIDTH // 2, 580))  # Position it below
+        self.voice_toggle_button_rect = voice_toggle_surf.get_rect(center=(SCREEN_WIDTH // 2, 580))
         surface.blit(voice_toggle_surf, self.voice_toggle_button_rect)
 
         back_color = AMBER if self.back_button_rect.collidepoint(mouse_pos) else WHITE
@@ -1435,7 +1405,6 @@ class SettingsState(BaseState):
         reset_color = AMBER if self.reset_button_rect.collidepoint(mouse_pos) else WHITE
         reset_text = BUTTON_FONT.render("[ Reset ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
-
 
 class WinState(BaseState):
     def __init__(self):
@@ -1470,7 +1439,6 @@ class WinState(BaseState):
 
         prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
         surface.blit(self.prompt_text, prompt_rect)
-
 
 level_story_intros = [
     "My first priority is to restore backup power. The main lab terminal should have my research notes.",
@@ -1634,7 +1602,6 @@ level_5_data = {
         "surveillance_report.txt": "Subject deviates from expected path. Agitated. Recalibrating escape probability... 41.3%."}
 }
 
-
 def main():
     global assets, settings, voice_manager
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -1679,7 +1646,6 @@ def main():
         clock.tick(FPS)
 
     pygame.quit()
-
 
 if __name__ == "__main__":
     main()
