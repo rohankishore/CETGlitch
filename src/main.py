@@ -59,7 +59,6 @@ class VoiceManager:
                 print(f"Error during speech synthesis: {e}")
 
     def speak(self, text):
-        """Speaks the given text if narration is enabled and the engine is ready."""
 
         if self.engine and settings and settings.get('enable_voice_narration'):
 
