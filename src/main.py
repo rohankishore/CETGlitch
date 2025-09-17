@@ -970,13 +970,13 @@ class TerminalState(BaseState):
     def update_prompt(self):
         priv_level = self.puzzle_manager.get_state('privilege_level')
         if priv_level == 0:
-            self.current_prompt = "user@CET-Glitch:~$ "
+            self.current_prompt = "user@GlitchCET:~$ "
         elif priv_level == 1:
-            self.current_prompt = "user_elevated@CET-Glitch:~$ "
+            self.current_prompt = "user_elevated@GlitchCET:~$ "
         elif priv_level == 2:
-            self.current_prompt = "admin@CET-Glitch:# "
+            self.current_prompt = "admin@GlitchCET:# "
         elif priv_level >= 3:
-            self.current_prompt = "root@CET-Glitch:# "
+            self.current_prompt = "root@GlitchCET:# "
 
     def _wrap_text(self, text, font, max_width):
         words, lines, current_line = text.split(' '), [], ""
