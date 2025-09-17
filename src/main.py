@@ -903,7 +903,7 @@ class TerminalState(BaseState):
             if font.size(current_line + word)[0] <= max_width:
                 current_line += word + " "
             else:
-                lines.append(current_line.strip());
+                lines.append(current_line.strip())
                 current_line = word + " "
         lines.append(current_line.strip())
         return lines
@@ -939,10 +939,10 @@ class TerminalState(BaseState):
                         self.command_history[self.history_index]
                 elif event.key == pygame.K_DOWN:
                     if self.history_index > 0:
-                        self.history_index -= 1;
+                        self.history_index -= 1
                         self.input_text = self.command_history[self.history_index]
                     else:
-                        self.history_index = -1;
+                        self.history_index = -1
                         self.input_text = ""
                 else:
                     self.input_text += event.unicode
@@ -950,7 +950,7 @@ class TerminalState(BaseState):
     def process_command(self):
         full_command, self.input_text = self.input_text.lower().strip(), ""
         self.add_output(f"> {full_command}", instant=True)
-        parts = full_command.split();
+        parts = full_command.split()
         command = parts[0] if parts else ""
         if not command: return
         if command == "help":
@@ -985,7 +985,7 @@ class TerminalState(BaseState):
                         break
                 if not found: self.add_output("ERROR: Invalid override code."); assets.play_sound("terminal_error")
             else:
-                self.add_output("Usage: override <CODE>");
+                self.add_output("Usage: override <CODE>")
                 assets.play_sound("terminal_error")
         elif command == "ls":
             self.add_output(" ".join(self.files.keys()) if self.files else "No files found.")
@@ -995,15 +995,15 @@ class TerminalState(BaseState):
                 if filename in self.files:
                     self.add_output(self.files[filename], instant=True)
                 else:
-                    self.add_output(f"ERROR: File not found: '{filename}'");
+                    self.add_output(f"ERROR: File not found: '{filename}'")
                     assets.play_sound("terminal_error")
             else:
-                self.add_output("Usage: cat <filename>");
+                self.add_output("Usage: cat <filename>")
                 assets.play_sound("terminal_error")
         elif command == "exit":
             self.transition_state = "out"
         else:
-            self.add_output(f"Command not recognized: '{command}'.");
+            self.add_output(f"Command not recognized: '{command}'.")
             assets.play_sound("terminal_error")
 
     def finish_typewriter(self):
@@ -1049,7 +1049,7 @@ class TerminalState(BaseState):
                 pygame.draw.rect(surface, GREEN, pygame.Rect(cursor_x + 2, y_pos, 10, TERMINAL_FONT.get_height()))
         if self.transition_alpha > 0:
             fade_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-            fade_surf.fill(BLACK);
+            fade_surf.fill(BLACK)
             fade_surf.set_alpha(self.transition_alpha)
             surface.blit(fade_surf, (0, 0))
 
