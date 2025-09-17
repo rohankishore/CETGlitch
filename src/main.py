@@ -127,7 +127,6 @@ class WardenManager:
         self.game_scene.camera.start_shake(1000, 7)
 
     def terminal_interference(self):
-        """Prepares a message to be injected into the terminal."""
         print("[Warden] Preparing terminal interference.")
         interferences = [
             " [Warden]: You don't belong here.",
@@ -212,6 +211,7 @@ class AssetManager:
         self.load_image("background", "assets/images/cet.png")
         self.load_sound("walk", "assets/audios/walk.mp3")
         self.load_sound("hum", "assets/audios/hum.mp3")
+        self.load_sound("powerup", "assets/audios/powerup.mp3")
         self.load_sound("glitch", "assets/audios/glitch.mp3")
         self.load_sound("interact", "assets/audios/interact.mp3")
         self.load_sound("popup", "assets/audios/popup.mp3")
@@ -898,7 +898,7 @@ class GameScene(BaseState):
     def on_enter(self):
         assets.play_sound("ambient_music", channel='music', loops=-1, fade_ms=1000)
         if self.puzzle_manager.get_state("power_restored"):
-            assets.play_sound("hum", loops=-1)
+            assets.play_sound("powerup", loops=-1)
 
     def on_exit(self):
         self.player.stop_sound()
