@@ -96,7 +96,6 @@ class WardenManager:
         self.reset_timer()
 
     def reset_timer(self):
-        """Sets the time for the next Warden event."""
         self.next_event_time = pygame.time.get_ticks() + self.event_cooldown + random.randint(-5000, 5000)
 
     def update(self):
