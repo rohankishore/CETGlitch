@@ -1,9 +1,11 @@
 import math
 import random
+import threading
 import time
 import webbrowser
 import json
 import pygame
+import pyttsx3
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 FPS = 60
@@ -33,6 +35,43 @@ TITLE_FONT = pygame.font.SysFont("Lucida Console", 96)
 BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
+
+
+class VoiceManager:
+    def __init__(self):
+        self.engine = None
+        if pyttsx3:
+            try:
+                self.engine = pyttsx3.init()
+                # Optional: Configure voice properties
+                # voices = self.engine.getProperty('voices')
+                # self.engine.setProperty('voice', voices[1].id) # Example: use a female voice if available
+                self.engine.setProperty('rate', 175)  # Speed of speech
+            except Exception as e:
+                print(f"Error initializing pyttsx3: {e}. Voice narration disabled.")
+                self.engine = None
+
+    def _speak_in_thread(self, text):
+        """Target function for the thread to prevent blocking."""
+        if self.engine:
+            try:
+                self.engine.say(text)
+                self.engine.runAndWait()
+            except Exception as e:
+                print(f"Error during speech synthesis: {e}")
+
+    def speak(self, text):
+        """Speaks the given text if narration is enabled and the engine is ready."""
+        # Check if voice is enabled in settings and if the engine initialized correctly
+        if self.engine and settings and settings.get('enable_voice_narration'):
+            # Stop any currently speaking narration before starting a new one
+            if self.engine.isBusy():
+                self.engine.stop()
+
+            # Run the speech in a separate thread to avoid freezing the game
+            thread = threading.Thread(target=self._speak_in_thread, args=(text,))
+            thread.daemon = True  # Allows the main program to exit even if the thread is running
+            thread.start()
 
 
 def wrap_text(text, font, max_width):
