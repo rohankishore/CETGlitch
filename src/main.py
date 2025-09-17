@@ -50,6 +50,56 @@ def wrap_text(text, font, max_width):
     lines.append(current_line.strip())
     return lines
 
+class WardenManager:
+    def __init__(self, game_scene):
+        self.game_scene = game_scene
+        self.next_event_time = 0
+        self.event_cooldown = 15000  # Milliseconds (15 seconds)
+        self.current_interference = None # For terminal interference
+        self.reset_timer()
+
+    def reset_timer(self):
+        """Sets the time for the next Warden event."""
+        self.next_event_time = pygame.time.get_ticks() + self.event_cooldown + random.randint(-5000, 5000)
+
+    def update(self):
+        now = pygame.time.get_ticks()
+        if now > self.next_event_time:
+            self.trigger_event()
+            self.reset_timer()
+
+    def trigger_event(self):
+        """Triggers a random hostile event."""
+        events = [self.minor_glitch, self.major_glitch, self.terminal_interference]
+        # Make major events rarer if privilege is low
+        if self.game_scene.puzzle_manager.get_state('privilege_level') < 1:
+            events = [self.minor_glitch]
+
+        chosen_event = random.choice(events)
+        chosen_event()
+
+    def minor_glitch(self):
+        print("[Warden] Triggering minor glitch.")
+        self.game_scene.glitch_manager.trigger_glitch(300, 8)
+        self.game_scene.camera.start_shake(300, 2)
+
+    def major_glitch(self):
+        print("[Warden] Triggering MAJOR glitch.")
+        self.game_scene.popup_manager.add_popup("SYS.SECURITY//: Anomaly Detected.", 2)
+        self.game_scene.glitch_manager.trigger_glitch(1200, 20)
+        self.game_scene.camera.start_shake(1000, 7)
+
+    def terminal_interference(self):
+        """Prepares a message to be injected into the terminal."""
+        print("[Warden] Preparing terminal interference.")
+        interferences = [
+            " [Warden]: You don't belong here.",
+            " [Warden]: I SEE YOU.",
+            " [Warden]: Deletion imminent."
+        ]
+        self.current_interference = random.choice(interferences)
+        # Give the player a warning
+        self.game_scene.popup_manager.add_popup("WARNING: I/O stream corrupted by unknown process.", 3)
 
 class SettingsManager:
 
