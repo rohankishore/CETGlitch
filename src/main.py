@@ -106,7 +106,6 @@ class WardenManager:
             self.reset_timer()
 
     def trigger_event(self):
-        """Triggers a random hostile event."""
         events = [self.minor_glitch, self.major_glitch, self.terminal_interference]
 
         if self.game_scene.puzzle_manager.get_state('privilege_level') < 1:
