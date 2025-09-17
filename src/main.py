@@ -735,8 +735,6 @@ class StoryState(BaseState):
 
 
 class LevelIntroState(BaseState):
-    """Displays story text before a level starts."""
-
     def __init__(self, state_manager, level_manager):
         super().__init__()
         self.state_manager = state_manager
