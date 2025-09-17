@@ -1,3 +1,4 @@
+import math
 import random
 import time
 import webbrowser
@@ -383,6 +384,15 @@ class Player(Entity):
         size = 32  # The diameter of our player circle
         super().__init__(x, y, size, size, name="player")
 
+        self.animation_timer = 0
+        self.animation_speed = 0.2  # How fast the bobbing is
+        self.bob_height = 2  # How much it bobs up and down (pixels)
+        #self.image = self.base_image  # Current image, initialized to base
+
+        self.speed = 5
+        self.dx, self.dy = 0, 0
+        self.is_walking = False
+
         # Create a new square surface that supports transparency (SRCALPHA)
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
 
@@ -399,6 +409,19 @@ class Player(Entity):
         self.get_input()
         self.move(walls)
         self.update_sound()
+
+    def animate(self):
+        if self.is_walking:
+            self.animation_timer += self.animation_speed
+            offset_y = int(math.sin(self.animation_timer) * self.bob_height)
+
+            # Create a new surface to blit the base image with offset
+            animated_image = pygame.Surface(self.base_image.get_size(), pygame.SRCALPHA)
+            animated_image.blit(self.base_image, (0, offset_y))  # Apply vertical offset
+            self.image = animated_image
+        else:
+            self.animation_timer = 0  # Reset timer when not walking
+            self.image = self.base_image
 
     def get_input(self):
         keys = pygame.key.get_pressed()
