@@ -332,6 +332,8 @@ class Player(Entity):
 
     def get_input(self):
         keys = pygame.key.get_pressed()
+        accel = 1.0
+        friction = 0.85
         self.dx, self.dy = 0, 0
         if keys[pygame.K_a] or keys[pygame.K_LEFT]: self.dx -= self.speed
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]: self.dx += self.speed
