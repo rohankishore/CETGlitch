@@ -50,7 +50,6 @@ class VoiceManager:
                 self.engine = None
 
     def _speak_in_thread(self, text):
-        """Target function for the thread to prevent blocking."""
         if self.engine:
             try:
                 self.engine.say(text)
