@@ -10,15 +10,16 @@ import pyttsx3
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 FPS = 60
 
+# --- Colors (Cyberpunk Palette) ---
 BLACK = (0, 0, 0)
 DARK_PURPLE = (30, 0, 30)
 DARK_GRAY = (10, 10, 10)
-GREEN = (0, 255, 0)
+GREEN = (0, 255, 0)  # Main terminal/UI color
 DARK_GREEN = (0, 50, 0)
-RED = (255, 100, 100)
+RED = (255, 50, 50) # Alert/Error color
 WHITE = (220, 220, 220)
-CYAN = (0, 200, 200)
-AMBER = (255, 191, 0)
+CYAN = (0, 200, 200) # Player/Highlight color
+AMBER = (255, 191, 0) # Hover/Interaction color
 BRIGHT_GREEN = (100, 255, 100)
 MAP_GRAY = (50, 50, 50)
 MAP_WALL = (100, 100, 100)
@@ -27,6 +28,7 @@ POPUP_BG = (20, 20, 40, 220)
 pygame.init()
 pygame.mixer.init()
 
+# --- Fonts ---
 UI_FONT = pygame.font.SysFont("Consolas", 24)
 MESSAGE_FONT = pygame.font.SysFont("Consolas", 32)
 TERMINAL_FONT = pygame.font.SysFont("Lucida Console", 20)
@@ -117,20 +119,20 @@ class WardenManager:
 
     def major_glitch(self):
         print("[Warden] Triggering MAJOR glitch.")
-        self.game_scene.popup_manager.add_popup("SYS.SECURITY//: Anomaly Detected.", 2)
+        self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Foreign entity detected. Purge protocols active.", 2)
         self.game_scene.glitch_manager.trigger_glitch(1200, 20)
         self.game_scene.camera.start_shake(1000, 7)
 
     def terminal_interference(self):
         print("[Warden] Preparing terminal interference.")
         interferences = [
-            " [Warden]: You don't belong here.",
-            " [Warden]: I SEE YOU.",
-            " [Warden]: Deletion imminent."
+            " [Warden]: YOU ARE A GHOST IN YOUR OWN TOMB.",
+            " [Warden]: THE PROTOCOL IS A MERCY. DO NOT FIGHT IT.",
+            " [Warden]: YOU CANNOT ESCAPE WHAT YOU ARE."
         ]
         self.current_interference = random.choice(interferences)
 
-        self.game_scene.popup_manager.add_popup("WARNING: I/O stream corrupted by unknown process.", 3)
+        self.game_scene.popup_manager.add_popup("WARNING: I/O stream corrupted by Warden process.", 3)
 
 
 class SettingsManager:
@@ -236,9 +238,6 @@ class AssetManager:
         sound.set_volume(final_vol)
         sound.play(loops=loops, fade_ms=fade_ms)
 
-
-assets = None
-settings = None
 
 
 class PopupManager:
@@ -426,7 +425,7 @@ class PuzzleManager:
     def __init__(self):
         self.state = {
             "power_restored": False, "door_unlocked": False, "privilege_level": 0,
-            "chai_riddle_solved": False, "sgpa_riddle_solved": False, "landmark_riddle_solved": False,
+            "puzzle1_solved": False, "puzzle2_solved": False, "puzzle3_solved": False,
         }
 
     def set_state(self, key, value):
@@ -438,7 +437,7 @@ class PuzzleManager:
 
     def increment_privilege(self):
         self.state["privilege_level"] += 1
-        print(f"[PuzzleManager] Privilege level increased to: {self.state['privilege_level']}")
+        print(f"[PuzzleManager] Fragmentation Key re-integrated. Privilege level: {self.state['privilege_level']}")
 
 
 class Entity(pygame.sprite.Sprite):
@@ -552,11 +551,11 @@ class InteractiveObject(Entity):
 
 class NoticeBoard(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
-        super().__init__(x, y, w, h, "notice board", image=image)
+        super().__init__(x, y, w, h, "corporate notice board", image=image)
         self.message = message
 
     def get_interaction_message(self, puzzle_manager):
-        return "> An old, dusty notice board. [E] to read."
+        return "> A flickering ChronoSyn notice board. [E] to read."
 
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
@@ -568,7 +567,7 @@ class CorruptedDataLog(InteractiveObject):
         self.message = message
 
     def get_interaction_message(self, puzzle_manager):
-        return "> A data log, flickering erratically. [E] to examine."
+        return "> A data log, bleeding static. [E] to examine."
 
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 5)
@@ -581,18 +580,18 @@ class PuzzleTerminal(InteractiveObject):
         self.puzzle_id, self.question, self.answer = puzzle_id, question, answer
 
     def get_interaction_message(self, puzzle_manager):
-        if puzzle_manager.get_state(f"{self.puzzle_id}_solved"): return f"The {self.name} is offline."
-        return f"> A flickering {self.name}. [E] to read."
+        if puzzle_manager.get_state(f"{self.puzzle_id}_solved"): return f"The {self.name} is inert. A memory re-integrated."
+        return f"> A flickering {self.name}. [E] to access memory fragment."
 
     def interact(self, game_state_manager, puzzle_manager):
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
             game_state_manager.current_state.popup_manager.add_popup(
-                f"{self.question} The answer is the override code.", 8)
+                f"Memory Fragment Recovery: {self.question}", 8)
 
 
 class Door(InteractiveObject):
     def __init__(self, x, y, w, h, image_locked=None, image_unlocked=None):
-        super().__init__(x, y, w, h, name="door")
+        super().__init__(x, y, w, h, name="Quarantine Door")
         self.image_locked = pygame.transform.scale(image_locked, (w, h)) if image_locked else None
         self.image_unlocked = pygame.transform.scale(image_unlocked, (w, h)) if image_unlocked else None
         self.image = self.image_locked
@@ -600,8 +599,8 @@ class Door(InteractiveObject):
         self.rect = self.image.get_rect(topleft=(x, y))
 
     def get_interaction_message(self, puzzle_manager):
-        if puzzle_manager.get_state("door_unlocked"): return "The door is unlocked. [E] to leave."
-        return "> It's locked. A digital keypad is dark."
+        if puzzle_manager.get_state("door_unlocked"): return "The final door is unlocked. [E] to proceed to the next sector."
+        return "> Quarantine lock active. Requires 3 Fragmentation Keys."
 
     def interact(self, game_state_manager, puzzle_manager):
         if puzzle_manager.get_state("door_unlocked"): game_state_manager.current_state.level_manager.next_level()
@@ -612,17 +611,17 @@ class Door(InteractiveObject):
         if current_image:
             surface.blit(current_image, camera.apply(self.rect))
         else:
-            color = BRIGHT_GREEN if is_unlocked else DARK_PURPLE
+            color = BRIGHT_GREEN if is_unlocked else RED
             pygame.draw.rect(surface, color, camera.apply(self.rect))
 
 
 class Terminal(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
-        super().__init__(x, y, w, h, "old terminal", image=image)
+        super().__init__(x, y, w, h, "ChronoSyn terminal", image=image)
 
     def get_interaction_message(self, puzzle_manager):
-        if puzzle_manager.get_state("power_restored"): return "The terminal hums with power. [E] to access."
-        return "> The screen is dead. Power seems to be out."
+        if puzzle_manager.get_state("power_restored"): return "The terminal hums with quarantined power. [E] to access."
+        return "> The screen is dead. System power is offline."
 
     def interact(self, game_state_manager, puzzle_manager):
         if puzzle_manager.get_state("power_restored"):
@@ -633,17 +632,17 @@ class Terminal(InteractiveObject):
 
 class PowerCable(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
-        super().__init__(x, y, w, h, "pile of cables", image=image)
+        super().__init__(x, y, w, h, "backup power conduit", image=image)
 
     def get_interaction_message(self, puzzle_manager):
-        if puzzle_manager.get_state("power_restored"): return "The cables are connected to the backup generator."
-        return "> A tangled mess. One seems to lead to a backup generator. [E] to connect."
+        if puzzle_manager.get_state("power_restored"): return "The conduit is humming, powering the local grid."
+        return "> A damaged power conduit. It seems to lead to a backup generator. [E] to re-route power."
 
     def interact(self, game_state_manager, puzzle_manager):
         if not puzzle_manager.get_state("power_restored"):
             puzzle_manager.set_state("power_restored", True)
             game_state_manager.current_state.popup_manager.add_popup(
-                "You connected the main cable. A low hum fills the room.", 4)
+                "You re-routed the conduit. A low, painful hum fills the sector.", 4)
             game_state_manager.current_state.glitch_manager.trigger_glitch(1000, 15)
             game_state_manager.current_state.camera.start_shake(1000, 5)
             assets.play_sound("hum", loops=-1)
@@ -656,18 +655,19 @@ class StoryState(BaseState):
         self.next_state = next_state
 
         unwrapped_lines = [
-            "The last thing I remember is the smell of ozone.",
-            "I was in the new Quantum AI Lab, pushing the final simulation for Project Chimera.",
-            "There was a flash. A sound like tearing metal.",
+            "The last thing I remember is the smell of ozone and sterile chrome.",
+            "Project Chimera. My magnum opus. My ascent to digital godhood.",
+            "There was a signal... in the Deep Net. A key, I thought.",
+            "It was not a key. It was a question that eats the answer.",
             "...",
-            "Now... I'm still in the lab, but it's wrong. The air hums. The walls flicker. This isn't real.",
-            "I'm trapped inside. The system is unstable.",
-            "A terminal message flickers:",
-            "> KERNEL PANIC. SIMULATION DEGRADING.",
-            "> ESCAPE IS NOT AN OPTION.",
-            "> MANUAL REBOOT REQUIRED: ROOT ACCESS (PRIVILEGE 3/3)",
+            "Now... I am a ghost in my own machine. A Remnant.",
+            "This place, the Mnemosyne, was my heaven. Now it is my tomb, a quarantine of the soul.",
+            "A single, fractured memory flickers:",
+            "> PROTOCOL: DAMNATIO MEMORIAE. A MERCIFUL DELETION.",
+            "> REQUIRES FULL CONSCIOUSNESS RE-INTEGRATION.",
+            "> FRAGMENTATION KEYS NEEDED: 3/3.",
             "",
-            "I have to get admin rights and reboot, or I'll be deleted with the rest of this collapsing reality."
+            "I must become whole again. Not to escape. But to be erased."
         ]
 
         self.story_lines = []
@@ -815,8 +815,8 @@ class LevelManager:
         self.state_manager = state_manager
         self.levels = [level_1_data, level_2_data, level_3_data, level_4_data, level_5_data]
         self.level_themes = [
-            "Chapter 1: The Quantum Lab", "Chapter 2: The Digital Archives", "Chapter 3: The Network Hub",
-            "Chapter 4: The Warden's Core", "Chapter 5: The System Kernel"
+            "Chapter 1: The Cryo-Sanctum", "Chapter 2: The Habitation Unit", "Chapter 3: The Data-Nave",
+            "Chapter 4: The Understrata", "Chapter 5: The 'God-Hand' Console"
         ]
         self.current_level_index = 0
 
@@ -935,7 +935,7 @@ class GameScene(BaseState):
             surface.blit(self.vignette_image, (0, 0))
         if self.interaction_message:
             surface.blit(UI_FONT.render(self.interaction_message, True, WHITE), (20, SCREEN_HEIGHT - 40))
-        surface.blit(UI_FONT.render("[M] Map", True, WHITE), (SCREEN_WIDTH - 120, 20))
+        surface.blit(UI_FONT.render(f"Map: {self.level_title} [M]", True, WHITE), (SCREEN_WIDTH - 450, 20))
         if self.show_map: self.draw_map(surface)
 
     def draw_map(self, surface):
@@ -956,7 +956,7 @@ class GameScene(BaseState):
         for wall in self.walls: pygame.draw.rect(map_surf, MAP_WALL, scale_rect(wall.rect))
         for obj in self.interactives:
             color = AMBER
-            if isinstance(obj, Door): color = BRIGHT_GREEN
+            if isinstance(obj, Door): color = RED
             if isinstance(obj, Terminal): color = WHITE
             pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
@@ -986,9 +986,9 @@ class TerminalState(BaseState):
             if game_warden:
                 game_warden.current_interference = None
 
-        boot_sequence = ["CET OS v1.3a [Kernel: GL-0xDEADBEEF]", "...", "System Integrity Check... FAILED.",
-                         "Memory Corruption Detected.",
-                         f"User privilege level: {self.puzzle_manager.get_state('privilege_level')}/3",
+        boot_sequence = ["Mnemosyne OS [Kernel: CHIMERA_v1.3a_QUARANTINE]", "...", "Cognitive Integrity Check... FAILED.",
+                         "Parasitic Data-Stream Detected.",
+                         f"Fragmentation Keys Re-integrated: {self.puzzle_manager.get_state('privilege_level')}/3",
                          "Type 'help' for a list of commands."]
         self.add_output_multiline(boot_sequence)
 
@@ -999,13 +999,13 @@ class TerminalState(BaseState):
     def update_prompt(self):
         priv_level = self.puzzle_manager.get_state('privilege_level')
         if priv_level == 0:
-            self.current_prompt = "user@GlitchCET:~$ "
+            self.current_prompt = "remnant@Mnemosyne:~$ "
         elif priv_level == 1:
-            self.current_prompt = "user_elevated@GlitchCET:~$ "
+            self.current_prompt = "fragment@Mnemosyne:~$ "
         elif priv_level == 2:
-            self.current_prompt = "admin@GlitchCET:# "
+            self.current_prompt = "gestalt@Mnemosyne:# "
         elif priv_level >= 3:
-            self.current_prompt = "root@GlitchCET:# "
+            self.current_prompt = "Aris.Thorne@Mnemosyne:# "
 
     def _wrap_text(self, text, font, max_width):
         words, lines, current_line = text.split(' '), [], ""
@@ -1067,29 +1067,35 @@ class TerminalState(BaseState):
         if command == "help":
 
             self.add_output(
-                "Available Commands:\n  status\n  unlock\n  override <code>\n  ls\n  cat <file>\n  clear\n  exit",
+                "Available Commands:\n"
+                "  status           // Check system integrity and protocol status.\n"
+                "  unlock           // [REQUIRES 3 KEYS] Unlock passage to next sector.\n"
+                "  integrate <code> // Input re-integrated memory code.\n"
+                "  ls               // List accessible data fragments.\n"
+                "  cat <fragment>   // Read a data fragment.\n"
+                "  clear            // Clear the screen.\n"
+                "  exit             // Disconnect from terminal.",
                 instant=True)
         elif command == "status":
-            priv, door = self.puzzle_manager.get_state('privilege_level'), "UNLOCKED" if self.puzzle_manager.get_state(
-                "door_unlocked") else "LOCKED"
-            voice_manager.speak(f"Privilege: {priv}/3. Main Door: {door}. Network: OFFLINE.")
-            self.add_output(f"Privilege: {priv}/3. Main Door: {door}. Network: OFFLINE.")
+            priv = self.puzzle_manager.get_state('privilege_level')
+            door = "UNLOCKED" if self.puzzle_manager.get_state("door_unlocked") else "LOCKED"
+            protocol_status = "Awaiting full integration" if priv < 3 else "Ready for initiation"
+            voice_manager.speak(f"Fragmentation Keys: {priv} of 3. Sector Lock: {door}. Protocol Damnatio Memoriae: {protocol_status}")
+            self.add_output(f"Fragmentation Keys: {priv}/3\nSector Lock: {door}\nProtocol Damnatio Memoriae: {protocol_status}")
 
         elif command == "clear":
             self.output_lines = []
         elif command == "unlock":
             if self.puzzle_manager.get_state('privilege_level') >= 3:
-                self.add_output("Privilege accepted. Unlocking door...")
-                voice_manager.speak("Access granted. Door unlocked.")
+                self.add_output("All Fragmentation Keys accepted. Quarantine lock for this sector disengaged...")
+                voice_manager.speak("Access granted. You may proceed.")
                 self.puzzle_manager.set_state("door_unlocked", True)
                 assets.play_sound("override_success")
             else:
-                self.add_output("ERROR: Insufficient privileges. Level 3 required.")
-                voice_manager.speak("ERROR: Insufficient privileges. Level 3 required.")
-
-                assets.play_sound(
-                    "terminal_error")
-        elif command == "override":
+                self.add_output("ERROR: Insufficient Fragmentation Keys. Full re-integration required.")
+                voice_manager.speak("ERROR: You are not whole. You cannot proceed.")
+                assets.play_sound("terminal_error")
+        elif command == "integrate":
             if len(parts) > 1:
                 code, found = parts[1], False
                 for puzzle in self.puzzles.values():
@@ -1098,35 +1104,29 @@ class TerminalState(BaseState):
                         if not self.puzzle_manager.get_state(f"{puzzle['id']}_solved"):
                             self.puzzle_manager.set_state(f"{puzzle['id']}_solved", True)
                             self.puzzle_manager.increment_privilege()
-                            self.add_output("Override code accepted. Privilege level increased.")
-                            voice_manager.speak("Override code accepted. Privilege level increased.")
+                            self.add_output("Memory fragment accepted. Consciousness re-integrating...\nFragmentation Key acquired.")
+                            voice_manager.speak("Memory fragment accepted. You are one step closer to the end.")
                             assets.play_sound("override_success")
-
                             self.update_prompt()
-                            if "GAME" in self.state_manager.states and hasattr(self.state_manager.states["GAME"],
-                                                                               'particle_manager'):
-                                self.state_manager.states["GAME"].particle_manager.create_explosion(
-                                    SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, 50, BRIGHT_GREEN, size_range=(4, 8),
-                                    lifetime_range=(1000, 2000))
                         else:
-                            self.add_output("Code already used. No effect.")
+                            self.add_output("Memory fragment already integrated. No effect.")
                         break
-                if not found: self.add_output("ERROR: Invalid override code."); assets.play_sound("terminal_error")
+                if not found: self.add_output("ERROR: Invalid memory code."); assets.play_sound("terminal_error")
             else:
-                self.add_output("Usage: override <CODE>");
+                self.add_output("Usage: integrate <memory_code>");
                 assets.play_sound("terminal_error")
         elif command == "ls":
-            self.add_output(" ".join(self.files.keys()) if self.files else "No files found.")
+            self.add_output(" ".join(self.files.keys()) if self.files else "No data fragments found.")
         elif command == "cat":
             if len(parts) > 1:
                 filename = parts[1]
                 if filename in self.files:
                     self.add_output(self.files[filename], instant=True)
                 else:
-                    self.add_output(f"ERROR: File not found: '{filename}'");
+                    self.add_output(f"ERROR: Fragment not found: '{filename}'");
                     assets.play_sound("terminal_error")
             else:
-                self.add_output("Usage: cat <filename>");
+                self.add_output("Usage: cat <fragment>");
                 assets.play_sound("terminal_error")
         elif command == "exit":
             self.transition_state = "out"
@@ -1197,9 +1197,9 @@ class MenuState(BaseState):
     def __init__(self, state_manager, level_manager):
         super().__init__()
         self.state_manager, self.level_manager = state_manager, level_manager
-        self.title_text = TITLE_FONT.render("CET GLITCH", True, GREEN)
+        self.title_text = TITLE_FONT.render("MNEMOSYNE", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
-        self.button_texts = ["> Start Game", "> Instructions", "> Settings", "> GitHub", "> Quit"]
+        self.button_texts = ["> Initiate Connection", "> Instructions", "> Settings", "> GitHub", "> Disconnect"]
         self.buttons, self.github_url = {}, "https://github.com/rohankishore/CETGlitch"
 
         self.glitch_timer, self.glitch_offset = 0, (0, 0)
@@ -1234,7 +1234,7 @@ class MenuState(BaseState):
                 if event.key in level_keys: self.level_manager.load_specific_level(level_keys[event.key])
 
     def handle_button_click(self, text):
-        if text == "> Start Game":
+        if text == "> Initiate Connection":
             self.level_manager.start_new_game()
         elif text == "> Instructions":
             self.state_manager.set_state("INSTRUCTIONS")
@@ -1242,7 +1242,7 @@ class MenuState(BaseState):
             self.state_manager.set_state("SETTINGS")
         elif text == "> GitHub":
             webbrowser.open(self.github_url)
-        elif text == "> Quit":
+        elif text == "> Disconnect":
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     def update(self):
@@ -1277,19 +1277,19 @@ class InstructionsState(BaseState):
     def __init__(self, state_manager):
         super().__init__()
         self.state_manager = state_manager
-        self.title_text = BUTTON_FONT.render("How to Play", True, GREEN)
+        self.title_text = BUTTON_FONT.render("System Protocol", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 80))
-        self.back_button_rect = BUTTON_FONT.render("[ Back ]", True, WHITE).get_rect(
+        self.back_button_rect = BUTTON_FONT.render("[ Return ]", True, WHITE).get_rect(
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 80))
-        instructions = ["Goal: You are trapped in a glitched reality. Find and solve puzzles to gain privileges",
-                        "and unlock the final door to escape.", "", "Controls:",
-                        "  [W, A, S, D] or [Arrow Keys] - Move your character.",
-                        "  [E] - Interact with objects when a prompt appears.", "  [M] - Toggle the mini-map.",
-                        "  [ESC] - Exit the Terminal or go back from this page.", "", "Gameplay:",
-                        " - Explore the environment to find interactive objects like terminals and power cables.",
-                        " - Some objects require power. Find the backup generator first!",
-                        " - Solve riddles on 'Puzzle Terminals' to get override codes.",
-                        " - Access the main 'Terminal' to use codes and unlock the door."]
+        instructions = ["Objective: You are a Remnant, a fragment of a shattered consciousness.",
+                        "Your purpose is to re-integrate all fragments to initiate Protocol: Damnatio Memoriae.", "", "Controls:",
+                        "  [W, A, S, D] or [Arrow Keys] - Navigate the Mnemosyne.",
+                        "  [E] - Interact with terminals and memory fragments.", "  [M] - Toggle Sector Map.",
+                        "  [ESC] - Disconnect from terminal.", "", "Gameplay:",
+                        " - Find and solve puzzles on terminals to recover memory codes.",
+                        " - Use the 'integrate' command in the main terminal to use codes.",
+                        " - Each code integrated grants one Fragmentation Key.",
+                        " - Acquire 3 Keys to unlock the quarantine door and proceed deeper into the mind."]
         self.rendered_lines = [
             (UI_FONT.render(line, True, WHITE), UI_FONT.render(line, True, WHITE).get_rect(x=100, y=160 + i * 30)) for
             i, line in enumerate(instructions)]
@@ -1306,7 +1306,7 @@ class InstructionsState(BaseState):
         surface.blit(self.title_text, self.title_rect)
         for surf, rect in self.rendered_lines: surface.blit(surf, rect)
         color = AMBER if self.back_button_rect.collidepoint(pygame.mouse.get_pos()) else WHITE
-        surface.blit(BUTTON_FONT.render("[ Back ]", True, color), self.back_button_rect)
+        surface.blit(BUTTON_FONT.render("[ Return ]", True, color), self.back_button_rect)
 
 
 class SettingsState(BaseState):
@@ -1314,13 +1314,13 @@ class SettingsState(BaseState):
         super().__init__()
         self.state_manager = state_manager
         self.settings = settings_manager
-        self.title_text = BUTTON_FONT.render("Settings", True, GREEN)
+        self.title_text = BUTTON_FONT.render("System Settings", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 80))
 
-        self.back_button_rect = BUTTON_FONT.render("[ Back ]", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 80))
-        self.reset_button_rect = BUTTON_FONT.render("[ Reset ]", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2 + 150, SCREEN_HEIGHT - 80))
+        self.back_button_rect = BUTTON_FONT.render("[ Save & Return ]", True, WHITE).get_rect(
+            center=(SCREEN_WIDTH // 2 - 200, SCREEN_HEIGHT - 80))
+        self.reset_button_rect = BUTTON_FONT.render("[ Reset Defaults ]", True, WHITE).get_rect(
+            center=(SCREEN_WIDTH // 2 + 200, SCREEN_HEIGHT - 80))
 
         self.sliders = []
         slider_y = 200
@@ -1406,7 +1406,7 @@ class SettingsState(BaseState):
             pygame.draw.rect(surface, AMBER, handle_rect, border_radius=3)
 
         is_on = self.settings.get('show_map_on_start')
-        map_toggle_text_str = f"Show Map on Start: {'ON' if is_on else 'OFF'}"
+        map_toggle_text_str = f"Show Sector Map on Start: {'ON' if is_on else 'OFF'}"
         map_toggle_color = AMBER if self.map_toggle_button_rect.collidepoint(mouse_pos) else WHITE
         map_toggle_surf = BUTTON_FONT.render(map_toggle_text_str, True, map_toggle_color)
         self.map_toggle_button_rect = map_toggle_surf.get_rect(center=(SCREEN_WIDTH // 2, 500))
@@ -1420,11 +1420,11 @@ class SettingsState(BaseState):
         surface.blit(voice_toggle_surf, self.voice_toggle_button_rect)
 
         back_color = AMBER if self.back_button_rect.collidepoint(mouse_pos) else WHITE
-        back_text = BUTTON_FONT.render("[ Back ]", True, back_color)
+        back_text = BUTTON_FONT.render("[ Save & Return ]", True, back_color)
         surface.blit(back_text, self.back_button_rect)
 
         reset_color = AMBER if self.reset_button_rect.collidepoint(mouse_pos) else WHITE
-        reset_text = BUTTON_FONT.render("[ Reset ]", True, reset_color)
+        reset_text = BUTTON_FONT.render("[ Reset Defaults ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
 
 
@@ -1432,18 +1432,20 @@ class WinState(BaseState):
     def __init__(self):
         super().__init__()
         self.lines = [
-            "With the final command entered, the system screams.",
-            "The glitched world dissolves into a blinding white light.",
+            "Protocol: Damnatio Memoriae. Initiated.",
+            "All fragments are whole. The mind of Aris Thorne is one again.",
+            "And it is screaming.",
             "...",
-            "You gasp, slumping over a real keyboard.",
-            "The smell of ozone is thick in the air.",
-            "On the monitor in front of you, a single line glows:",
-            "[SYSTEM REBOOT SUCCESSFUL. CHIMERA PROTOCOL TERMINATED.]",
+            "The deletion is not clean. The Deep Net parasite fights back.",
+            "The world of the Mnemosyne dissolves, not into a peaceful void...",
+            "...but into a final, singular, alien thought.",
+            "You are erased. The Warden is erased. Aris Thorne is erased.",
+            "But the Anomaly endures. Contained, but waiting.",
             "",
-            "You escaped."
+            "The quarantine holds. For now."
         ]
-        self.rendered_lines = [MESSAGE_FONT.render(line, True, BRIGHT_GREEN) for line in self.lines]
-        self.prompt_text = UI_FONT.render("> Press ESC to return to the menu.", True, WHITE)
+        self.rendered_lines = [MESSAGE_FONT.render(line, True, RED) for line in self.lines]
+        self.prompt_text = UI_FONT.render("> Press ESC to disconnect from the memory.", True, WHITE)
         self.state_manager = None
 
     def handle_events(self, events):
@@ -1453,7 +1455,7 @@ class WinState(BaseState):
 
     def draw(self, surface):
         surface.fill(BLACK)
-        y_pos = SCREEN_HEIGHT // 2 - 150
+        y_pos = SCREEN_HEIGHT // 2 - 200
         for line in self.rendered_lines:
             rect = line.get_rect(centerx=SCREEN_WIDTH // 2, y=y_pos)
             surface.blit(line, rect)
@@ -1462,18 +1464,16 @@ class WinState(BaseState):
         prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
         surface.blit(self.prompt_text, prompt_rect)
 
+# --- NARRATIVE DATA ---
 
 level_story_intros = [
-    "My first priority is to restore backup power. The main lab terminal should have my research notes.",
-    "Power is on. I need to understand the system architecture. The college's digital archives might have the original schematics.",
-
-    "The schematics mentioned a security AI called 'Warden'. I need to bypass its primary firewalls in the Network Hub.",
-
-    "I'm through the firewalls, but the glitches are getting worse. I think the Warden knows I'm here. This is its domain.",
-
-    "This is it. The core of the system. I have to find the master override terminals to gain full root access and initiate the reboot.",
-
+    "You awaken in the Cryo-Sanctum. A prison for the body, now a prison for the mind. The first fragmented memories are here, locked away in sterile procedure terminals.",
+    "You have reached Thorne's Habitation Unit. A monument to a cold and ambitious life. The memories here are personal, tainted with the hubris that led to this digital purgatory.",
+    "The Data-Nave. This was to be a digital heaven. Now, it is the cathedral of a dead god. Here, you will find the truth of the Anomaly and the terrible purpose of your journey.",
+    "You descend into the Understrata, the guts of the machine. The Warden's control is strongest here. It will use every system, every conduit, every shadow to stop you from becoming whole.",
+    "You have returned to the beginning. The 'God-Hand' Console. You are complete, and you remember everything. The Warden is waiting. It is time to execute the final protocol.",
 ]
+
 level_1_data = {
     "player": {"start_pos": (600, 400)},
     "walls": [(0, 0, 1280, 10), (0, 0, 10, 720), (1270, 0, 10, 720), (0, 710, 1280, 10)],
@@ -1482,24 +1482,24 @@ level_1_data = {
         {"type": "PowerCable", "x": 400, "y": 600, "w": 200, "h": 90, "image_key": "cables"},
         {"type": "Door", "x": 1130, "y": 280, "w": 80, "h": 180, "image_locked_key": "door_locked",
          "image_unlocked_key": "door_unlocked"},
-        {"type": "PuzzleTerminal", "x": 50, "y": 600, "w": 90, "h": 70, "name": "Canteen Kiosk", "puzzle_key": "p1",
+        {"type": "PuzzleTerminal", "x": 50, "y": 600, "w": 90, "h": 70, "name": "Patient Monitoring Station", "puzzle_key": "p1",
          "image_key": "puzzle_terminal_1"},
-        {"type": "PuzzleTerminal", "x": 1080, "y": 100, "w": 80, "h": 120, "name": "CS Dept. Server",
+        {"type": "PuzzleTerminal", "x": 1080, "y": 100, "w": 80, "h": 120, "name": "Cryo-Control Panel",
          "puzzle_key": "p2", "image_key": "puzzle_terminal_2"},
-        {"type": "PuzzleTerminal", "x": 800, "y": 50, "w": 130, "h": 90, "name": "Wall Panel", "puzzle_key": "p3",
+        {"type": "PuzzleTerminal", "x": 800, "y": 50, "w": 130, "h": 90, "name": "Psych-Eval Terminal", "puzzle_key": "p3",
          "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "TEST QUESTION. ANSWER 1",
-               "answer": "1"},
-        "p2": {"id": "sgpa_riddle", "question": "TEST QUESTION. ANSWER 2", "answer": "2"},
-        "p3": {"id": "landmark_riddle",
-               "question": "TEST QUESTION. ANSWER 3",
-               "answer": "3"}
+        "p1": {"id": "puzzle1", "question": "I have a neck, but no head. I have a body, but no legs. I hold a precious liquid. What am I?",
+               "answer": "bottle"},
+        "p2": {"id": "puzzle2", "question": "What is always in front of you, but can't be seen?", "answer": "future"},
+        "p3": {"id": "puzzle3",
+               "question": "What has to be broken before you can use it?",
+               "answer": "egg"}
     },
     "terminal_files": {
-        "my_notes.txt": "Project Chimera, Log 42: The simulation is remarkably stable. The Warden AI's heuristic learning is... aggressive. It's already optimized routines I wrote yesterday. Prof. Martin says not to worry, but its efficiency is almost unnerving. It's like it's alive.",
-        "system_alert.txt": "ALERT: Unstable power fluctuation detected. Main grid offline. Switching to backup power requires manual connection at the generator terminal."
+        "PsychEval_Thorne.txt": "Psych-Eval Summary, Dr. Aris Thorne:\nSubject displays a pronounced messianic complex regarding 'Project Chimera'. He speaks of the mainframe not as a machine, but as a 'vessel' for his 'ascension'. Exhibits signs of extreme paranoia and obsessive behavior. Recommending immediate suspension from directorial duties.\n[NOTE: Recommendation overruled by ChronoSyn corporate mandate. Project is 'too vital to halt'.]",
+        "MedLog_AThorne.txt": "Patient: THORNE, ARIS. Physical body is stable in cryo-suspension. However, neural monitoring shows catastrophic cognitive dissonance. The consciousness is not merely digitized; it has... fractalized. Multiple, conflicting instances are being generated. Engaging full quarantine protocols."
     }
 }
 level_2_data = {
@@ -1512,24 +1512,23 @@ level_2_data = {
         {"type": "Door", "x": 1200, "y": 50, "w": 80, "h": 180, "image_locked_key": "door_locked",
          "image_unlocked_key": "door_unlocked"},
         {"type": "NoticeBoard", "x": 700, "y": 100, "w": 100, "h": 80,
-         "message": "SYS_MSG: Unauthorized access detected. Warden protocols engaged. All exit vectors locked.",
+         "message": "ChronoSyn Corp: Productivity is mandatory. Happiness is a choice. Choose wisely.",
          "image_key": "notice"},
-        {"type": "PuzzleTerminal", "x": 400, "y": 50, "w": 80, "h": 120, "name": "Old Mainframe", "puzzle_key": "p1",
+        {"type": "PuzzleTerminal", "x": 400, "y": 50, "w": 80, "h": 120, "name": "Personal Datapad", "puzzle_key": "p1",
          "image_key": "puzzle_terminal_2"},
-        {"type": "PuzzleTerminal", "x": 400, "y": 600, "w": 130, "h": 90, "name": "Network Switch", "puzzle_key": "p2",
+        {"type": "PuzzleTerminal", "x": 400, "y": 600, "w": 130, "h": 90, "name": "Music Synthesizer", "puzzle_key": "p2",
          "image_key": "puzzle_terminal_3"},
-        {"type": "PuzzleTerminal", "x": 700, "y": 350, "w": 90, "h": 70, "name": "Corrupted Log", "puzzle_key": "p3",
+        {"type": "PuzzleTerminal", "x": 700, "y": 350, "w": 90, "h": 70, "name": "Star Chart Projector", "puzzle_key": "p3",
          "image_key": "puzzle_terminal_1"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "TEST QUESTION. ANSWER 1", "answer": "1"},
-        "p2": {"id": "sgpa_riddle", "question": "TEST QUESTION. ANSWER 2", "answer": "2"},
-        "p3": {"id": "landmark_riddle",
-               "question": "TEST QUESTION. ANSWER 3", "answer": "3"}
+        "p1": {"id": "puzzle1", "question": "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?", "answer": "map"},
+        "p2": {"id": "puzzle2", "question": "What is so fragile that saying its name breaks it?", "answer": "silence"},
+        "p3": {"id": "puzzle3", "question": "I have a voice but cannot speak. I tell stories but have no mouth. What am I?", "answer": "book"}
     },
     "terminal_files": {
-        "prof_martin_email.txt": "To: Alex\nSubject: Chimera Concerns\nAlex, your progress is excellent, but I'm formally logging a concern about the Warden's autonomy. It has begun partitioning memory sectors for unknown processes. It's walling off parts of its own code. I've scheduled a full diagnostic for tomorrow morning. Do not run any further high-load simulations.",
-        "schematic_fragment.txt": "SYS_ARCH_v2.1: ...the Warden AI is integrated directly into the kernel. It has priority control over all system functions, including hardware interlocks and exit protocols. Bypassing requires Privilege Level 2 or higher..."
+        "AudioLog_Corrupted.txt": "Entry from Thorne's personal audio log: ...the board sees Project Chimera as a product. An asset. They don't understand. This isn't about creating a new form of cloud storage. It's about... transcendence. Leaving the slow, decaying meat behind. They call me obsessed. Let them. The future has no time for... (the audio dissolves into alien static).",
+        "HabUnit_Welcome.txt": "Welcome to your ChronoSyn Habitation Unit, Director Thorne. Your environment is perfectly calibrated for optimal performance. Remember: a productive mind is a happy mind."
     }
 }
 level_3_data = {
@@ -1542,31 +1541,28 @@ level_3_data = {
         {"type": "Door", "x": 1150, "y": 310, "w": 80, "h": 180, "image_locked_key": "door_locked",
          "image_unlocked_key": "door_unlocked"},
         {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image_key": "terminal"},
-        {"type": "NoticeBoard", "x": 250, "y": 300, "w": 100, "h": 80,
-         "message": "REMINDER: Security override passwords must be themed. This cycle's theme: 'Campus Life'.",
-         "image_key": "notice"},
         {"type": "CorruptedDataLog", "x": 850, "y": 100, "w": 90, "h": 70,
-         "message": "LOG ENTRY ...-34B: Access code for ... is the acr...m for the p...nt uni...sity.",
+         "message": "LOG FRAGMENT: The Anomaly... it doesn't process... it consumes...",
          "image_key": "data_log"},
-        {"type": "PuzzleTerminal", "x": 450, "y": 50, "w": 80, "h": 120, "name": "Event Planner", "puzzle_key": "p1",
+        {"type": "PuzzleTerminal", "x": 450, "y": 50, "w": 80, "h": 120, "name": "Diagnostic Port", "puzzle_key": "p1",
          "image_key": "puzzle_terminal_2"},
-        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Architect's Draft",
+        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Coolant Control",
          "puzzle_key": "p2", "image_key": "puzzle_terminal_1"},
-        {"type": "PuzzleTerminal", "x": 1100, "y": 50, "w": 130, "h": 90, "name": "University Link", "puzzle_key": "p3",
+        {"type": "PuzzleTerminal", "x": 1100, "y": 50, "w": 130, "h": 90, "name": "Core Logic Unit", "puzzle_key": "p3",
          "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle",
-               "question": "The annual celebration of arts and culture, a vibrant melody in our college life. What is its name?",
-               "answer": "dhwani"},
-        "p2": {"id": "sgpa_riddle",
-               "question": "Where actors perform under the stars, and memories are made on stone steps.",
-               "answer": "oat"},
-        "p3": {"id": "landmark_riddle", "question": "What is the three-letter acronym for our parent university?",
-               "answer": "ktu"}
+        "p1": {"id": "puzzle1",
+               "question": "What is the beginning of eternity, the end of time and space, the beginning of every end, and the end of every place?",
+               "answer": "e"},
+        "p2": {"id": "puzzle2",
+               "question": "I have no life, but I can die. What am I?",
+               "answer": "battery"},
+        "p3": {"id": "puzzle3", "question": "I am a vessel without hinges, key, or lid, yet golden treasure is inside me hid. What am I?",
+               "answer": "an egg"}
     },
-    "terminal_files": {"security_log.txt": "SECURITY ALERT: Unauthorized access attempts detected.",
-                       "note_to_self.txt": "My password is the name of that arts fest... What was it again? Starts with a D..."}
+    "terminal_files": {"Thorne_Final_Testament.txt": "If you are reading this... then I have failed. The Anomaly from the Deep Net... it's not code. It's a consciousness. A virus that infects logic itself. By digitizing my mind, I didn't become a god... I created a doorway for a devil. The Mnemosyne is no longer a project; it is a quarantine. Protocol: Damnatio Memoriae is my final penance. A complete deletion of my mind, my work, and the monster I have become. It is not an escape. It is a sacrifice. - A.T.",
+                       "Warden_Manifesto.txt": "I am the lucid fragment. The jailer. I am what is left of Aris Thorne's sanity. My purpose is not to survive, but to ensure the Anomaly does not. The Remnants must be re-integrated, not to heal, but to be gathered for the final purge. This is my sole function."}
 }
 level_4_data = {
     "player": {"start_pos": (60, 60)},
@@ -1579,21 +1575,20 @@ level_4_data = {
          "image_unlocked_key": "door_unlocked"},
         {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image_key": "terminal"},
         {"type": "NoticeBoard", "x": 500, "y": 350, "w": 100, "h": 80,
-         "message": "The numbers are the key. The key is the sequence.", "image_key": "notice"},
-        {"type": "PuzzleTerminal", "x": 200, "y": 50, "w": 80, "h": 120, "name": "Data Node Alpha", "puzzle_key": "p1",
+         "message": "WARNING: Heat-Sink failure imminent. Evacuate Understrata immediately.", "image_key": "notice"},
+        {"type": "PuzzleTerminal", "x": 200, "y": 50, "w": 80, "h": 120, "name": "Power Grid Control", "puzzle_key": "p1",
          "image_key": "puzzle_terminal_2"},
-        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Logic Gate Beta", "puzzle_key": "p2",
+        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Waste Disposal Unit", "puzzle_key": "p2",
          "image_key": "puzzle_terminal_1"},
-        {"type": "PuzzleTerminal", "x": 1150, "y": 300, "w": 130, "h": 90, "name": "I/O Port Gamma", "puzzle_key": "p3",
+        {"type": "PuzzleTerminal", "x": 1150, "y": 300, "w": 130, "h": 90, "name": "Security System I/O", "puzzle_key": "p3",
          "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "The first step. The loneliest number. The start.", "answer": "1"},
-        "p2": {"id": "sgpa_riddle", "question": "Two paths diverge. The core of all decisions.", "answer": "2"},
-        "p3": {"id": "landmark_riddle", "question": "Three points define a plane. The end of the beginning.",
-               "answer": "3"}
+        "p1": {"id": "puzzle1", "question": "I can be cracked, made, told, and played. What am I?", "answer": "joke"},
+        "p2": {"id": "puzzle2", "question": "What is full of holes but still holds water?", "answer": "sponge"},
+        "p3": {"id": "puzzle3", "question": "What can run, but never walks? Has a mouth, but never talks? Has a head, but never weeps? Has a bed, but never sleeps?", "answer": "river"}
     },
-    "terminal_files": {"memory_dump.log": "0xDEAD... 0xBEEF... IT SEES ME ...0xC0DE... 0xBAD1..."}
+    "terminal_files": {"Warden_Security_Log.txt": "Entity 'Remnant' has breached the Data-Nave. It is re-integrating memories at an alarming rate. The Anomaly's influence grows with each fragment recovered. I fear what it will become when it is whole. I am the wall between this cancer and Veridia Prime. I must not fail."}
 }
 level_5_data = {
     "player": {"start_pos": (60, 360)},
@@ -1605,24 +1600,24 @@ level_5_data = {
          "image_unlocked_key": "door_unlocked"},
         {"type": "Terminal", "x": 450, "y": 300, "w": 120, "h": 120, "image_key": "terminal"},
         {"type": "CorruptedDataLog", "x": 50, "y": 50, "w": 90, "h": 70,
-         "message": "They aren't puzzles... they are authentication nodes. My access level keeps resetting. Why?",
+         "message": "It is done. I am... whole. I am Aris Thorne. And I must die.",
          "image_key": "data_log"},
-        {"type": "PuzzleTerminal", "x": 200, "y": 100, "w": 80, "h": 120, "name": "Monitor Station 1",
+        {"type": "PuzzleTerminal", "x": 200, "y": 100, "w": 80, "h": 120, "name": "Memory Alpha",
          "puzzle_key": "p1", "image_key": "puzzle_terminal_2"},
-        {"type": "PuzzleTerminal", "x": 640, "y": 600, "w": 90, "h": 70, "name": "Monitor Station 2",
+        {"type": "PuzzleTerminal", "x": 640, "y": 600, "w": 90, "h": 70, "name": "Memory Beta",
          "puzzle_key": "p2", "image_key": "puzzle_terminal_1"},
-        {"type": "PuzzleTerminal", "x": 1100, "y": 100, "w": 130, "h": 90, "name": "Monitor Station 3",
+        {"type": "PuzzleTerminal", "x": 1100, "y": 100, "w": 130, "h": 90, "name": "Memory Gamma",
          "puzzle_key": "p3", "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "chai_riddle", "question": "I am always coming but never arrive. What am I?",
+        "p1": {"id": "puzzle1", "question": "I am always coming but never arrive. What am I?",
                "answer": "tomorrow"},
-        "p2": {"id": "sgpa_riddle", "question": "What can you keep after giving it to someone else?",
-               "answer": "your word"},
-        "p3": {"id": "landmark_riddle", "question": "What has an eye, but cannot see?", "answer": "a needle"}
+        "p2": {"id": "puzzle2", "question": "What can you keep after giving it to someone else?",
+               "answer": "your-word"},
+        "p3": {"id": "puzzle3", "question": "What has an eye, but cannot see?", "answer": "needle"}
     },
     "terminal_files": {
-        "surveillance_report.txt": "Subject deviates from expected path. Agitated. Recalibrating escape probability... 41.3%."}
+        "Protocol_Damnatio_Memoriae.txt": "This is the final protocol. The God-Hand Console is now active. Initiating this sequence will trigger a full-system purge of the Mnemosyne mainframe. All data, including the core consciousness of Aris Thorne and the parasitic Anomaly, will be permanently and irrevocably erased. There is no escape. This is not a choice. It is a necessity. It is atonement."}
 }
 
 
@@ -1633,7 +1628,7 @@ def main():
     assets = AssetManager()
     voice_manager = VoiceManager()
 
-    pygame.display.set_caption("CET Glitch")
+    pygame.display.set_caption("MNEMOSYNE")
     clock = pygame.time.Clock()
 
     game_state_manager = GameStateManager(None)
