@@ -22,6 +22,8 @@ LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
 
+
+
 class VoiceManager:
     def __init__(self):
         self.engine = None
@@ -73,7 +75,7 @@ class WardenManager:
     def __init__(self, game_scene):
         self.game_scene = game_scene
         self.next_event_time = 0
-        self.event_cooldown = 12000  # Reduced cooldown for more frequent events
+        self.event_cooldown = 12000
         self.current_interference = None
         self.reset_timer()
 
@@ -87,11 +89,21 @@ class WardenManager:
             self.reset_timer()
 
     def trigger_event(self):
-        events = [self.minor_glitch, self.major_glitch, self.terminal_interference, self.static_burst,
-                  self.object_corruption]
+        level_index = self.game_scene.level_manager.current_level_index
+        priv_level = self.game_scene.puzzle_manager.get_state('privilege_level')
 
-        if self.game_scene.puzzle_manager.get_state('privilege_level') < 1:
-            events = [self.minor_glitch, self.static_burst]
+        # Phase 1: Disruption (Levels 0-1, which are Chapters 1-2)
+        events = [self.minor_glitch, self.static_burst]
+        if priv_level > 0:
+            events.extend([self.object_corruption, self.terminal_interference])
+
+        # Phase 2: Intimidation (Level 2+, which is Chapter 3 onwards)
+        if level_index >= 2:
+            events.append(self.spawn_hunter)
+
+        # Phase 3: Desperation (Level 4, which is Chapter 5)
+        if level_index >= 4:
+            events.extend([self.major_glitch, self.spawn_hunter, self.environmental_mimicry])
 
         chosen_event = random.choice(events)
         chosen_event()
@@ -127,16 +139,30 @@ class WardenManager:
     def object_corruption(self):
         if not self.game_scene.interactives: return
         target = random.choice(self.game_scene.interactives)
-        if isinstance(target, Door):  # Don't corrupt the door
+        if isinstance(target, Door):
             self.minor_glitch()
             return
         print(f"[Warden] Corrupting object: {target.name}")
         self.game_scene.corrupted_objects.append({
             'obj': target,
-            'end_time': pygame.time.get_ticks() + 2000  # Corrupt for 2 seconds
+            'end_time': pygame.time.get_ticks() + 2000
         })
         self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Data instability detected.", 2)
 
+    def spawn_hunter(self):
+        if len(self.game_scene.hunters) >= 1:  # Limit to 1 hunter at a time for now
+            self.object_corruption()  # Do something else if hunter exists
+            return
+
+        print("[Warden] Spawning Hunter entity.")
+        self.game_scene.popup_manager.add_popup("WARNING: Warden process located in this sector.", 3)
+        self.game_scene.add_hunter()
+
+    def environmental_mimicry(self):
+        # A placeholder for the more complex mimicry logic. For now, it's a major glitch.
+        print("[Warden] Triggering Environmental Mimicry.")
+        self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Reality matrix compromised.", 3)
+        self.major_glitch()
 
 class SettingsManager:
 
@@ -287,7 +313,6 @@ class PopupManager:
     def draw(self, surface):
         for popup in self.popups:
             surface.blit(popup['surface'], popup['rect'])
-
 
 class GameStateManager:
     def __init__(self, initial_state):
@@ -473,6 +498,59 @@ class Entity(pygame.sprite.Sprite):
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
 
+class WardenHunter(Entity):
+    def __init__(self, x, y):
+        size = 40
+        super().__init__(x, y, size, size, name="warden_hunter")
+        self.image = pygame.Surface((size, size), pygame.SRCALPHA)
+        # Simple pulsating red square aesthetic
+        pygame.draw.rect(self.image, RED, (0, 0, size, size), 4)
+        pygame.draw.rect(self.image, DARK_RED, (4, 4, size - 8, size - 8))
+        self.speed = 2
+        self.move_timer = 0
+        self.move_duration = random.randint(1000, 3000)
+        self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1)])
+        self.pulse_timer = 0
+        self.base_image = self.image.copy()
+
+    def update(self, player, walls):
+        now = pygame.time.get_ticks()
+
+        # Pulsating visual effect
+        self.pulse_timer += 0.1
+        alpha = 128 + math.sin(self.pulse_timer) * 127
+        self.image = self.base_image.copy()
+        self.image.set_alpha(alpha)
+
+        # Simple movement A
+        if now > self.move_timer:
+            self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)]) # Can pause
+            self.move_timer = now + random.randint(1000, 3000)
+
+        dx = self.direction[0] * self.speed
+        dy = self.direction[1] * self.speed
+
+        self.rect.x += dx
+        self.check_collision('x', walls, dx)
+        self.rect.y += dy
+        self.check_collision('y', walls, dy)
+
+        # Check for collision with player
+        if self.rect.colliderect(player.rect):
+            player.get_caught()
+
+
+    def check_collision(self, direction, collidables, velocity):
+        for entity in collidables:
+            if self.rect.colliderect(entity.rect):
+                if direction == 'x':
+                    if velocity > 0: self.rect.right = entity.rect.left
+                    if velocity < 0: self.rect.left = entity.rect.right
+                if direction == 'y':
+                    if velocity > 0: self.rect.bottom = entity.rect.top
+                    if velocity < 0: self.rect.top = entity.rect.bottom
+                self.direction = (-self.direction[0], -self.direction[1]) # Reverse direction on hit
+
 
 class Player(Entity):
     def __init__(self, x, y):
@@ -488,12 +566,20 @@ class Player(Entity):
         self.is_walking = False
 
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
-
         pygame.draw.circle(self.image, CYAN, (size // 2, size // 2), size // 2)
 
-        self.speed = 5
-        self.dx, self.dy = 0, 0
-        self.is_walking = False
+        # Store start position for resets
+        self.start_x, self.start_y = x, y
+        self.game_scene = None  # Will be set by GameScene
+
+    def get_caught(self):
+        """Called when the WardenHunter catches the player."""
+        print("[Player] Caught by Warden Hunter!")
+        if self.game_scene:
+            self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Threat neutralized. Resetting...", 2)
+            self.game_scene.glitch_manager.trigger_glitch(1500, 25)
+            self.game_scene.camera.start_shake(1500, 10)
+            self.rect.topleft = (self.start_x, self.start_y)  # Reset position
 
     def update(self, walls):
         self.get_input()
@@ -554,7 +640,6 @@ class Player(Entity):
 
     def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
-
 
 class Wall(Entity):
     def __init__(self, x, y, w, h):
@@ -922,10 +1007,15 @@ class GameScene(BaseState):
             self.vignette_image = pygame.transform.scale(self.vignette_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
         self.warden_manager = WardenManager(self)
         self.show_map = settings.get('show_map_on_start')
+
         self.player = Player(level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1])
+        self.player.game_scene = self  # Give player a reference to the scene
+
         self.level_title = level_title
         self.corrupted_objects = []
+        self.hunters = []
         self.interactives = []
+
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
             if obj_type == "Terminal":
@@ -948,6 +1038,17 @@ class GameScene(BaseState):
                     CorruptedDataLog(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"])))
         self.walls, self.flicker_timer, self.interaction_message = [Wall(w[0], w[1], w[2], w[3]) for w in
                                                                     level_data["walls"]], 0, ""
+
+    def add_hunter(self):
+        # Spawn hunter away from the player
+        px, py = self.player.rect.center
+        spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)
+
+        # Simple check to avoid spawning right on top of the player
+        while math.hypot(px - spawn_x, py - spawn_y) < 300:
+            spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)
+
+        self.hunters.append(WardenHunter(spawn_x, spawn_y))
 
     def on_enter(self):
         assets.play_sound("ambient_music", channel='music', loops=-1, fade_ms=1000)
@@ -977,11 +1078,16 @@ class GameScene(BaseState):
     def update(self):
         now = pygame.time.get_ticks()
         self.player.update(self.walls)
+
+        for hunter in self.hunters:
+            hunter.update(self.player, self.walls)
+
         self.camera.update(self.player)
         self.glitch_manager.update()
         self.warden_manager.update()
         self.popup_manager.update()
         self.corrupted_objects = [o for o in self.corrupted_objects if o['end_time'] > now]
+
         prompt = ""
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
@@ -992,7 +1098,13 @@ class GameScene(BaseState):
     def draw(self, surface):
         self.flicker_timer = (self.flicker_timer + 1) % 60
         surface.fill(DARK_GRAY if self.flicker_timer < 50 else DARK_PURPLE)
-        for entity in self.walls + self.interactives: entity.draw(surface, self.camera, self.puzzle_manager)
+
+        for entity in self.walls + self.interactives:
+            entity.draw(surface, self.camera, self.puzzle_manager)
+
+        for hunter in self.hunters:
+            hunter.draw(surface, self.camera)
+
         self.player.draw(surface, self.camera)
 
         for corrupted in self.corrupted_objects:
@@ -1040,9 +1152,13 @@ class GameScene(BaseState):
             if isinstance(obj, Door): color = RED
             if isinstance(obj, Terminal): color = WHITE
             pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
+
+        # Draw hunter on map
+        for hunter in self.hunters:
+            pygame.draw.rect(map_surf, DARK_RED, scale_rect(hunter.rect))
+
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
-
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
