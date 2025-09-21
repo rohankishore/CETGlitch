@@ -6,24 +6,7 @@ import webbrowser
 import json
 import pygame
 import pyttsx3
-
-SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
-FPS = 60
-
-# --- Colors (Cyberpunk Palette) ---
-BLACK = (0, 0, 0)
-DARK_PURPLE = (30, 0, 30)
-DARK_GRAY = (10, 10, 10)
-GREEN = (0, 255, 0)  # Main terminal/UI color
-DARK_GREEN = (0, 50, 0)
-RED = (255, 50, 50) # Alert/Error color
-WHITE = (220, 220, 220)
-CYAN = (0, 200, 200) # Player/Highlight color
-AMBER = (255, 191, 0) # Hover/Interaction color
-BRIGHT_GREEN = (100, 255, 100)
-MAP_GRAY = (50, 50, 50)
-MAP_WALL = (100, 100, 100)
-POPUP_BG = (20, 20, 40, 220)
+from core.const import *
 
 pygame.init()
 pygame.mixer.init()
@@ -205,7 +188,7 @@ class AssetManager:
         self.load_image("puzzle_terminal_3", "assets/images/puzzle_terminal_3.png")
         self.load_image("notice", "assets/images/notice.png")
         self.load_image("data_log", "assets/images/data_log.png")
-        self.load_image("background", "assets/images/cet.png")
+        self.load_image("background", "assets/images/banner.png")
         self.load_sound("walk", "assets/audios/walk.mp3")
         self.load_sound("hum", "assets/audios/hum.mp3")
         self.load_sound("powerup", "assets/audios/powerup.mp3")
@@ -218,6 +201,8 @@ class AssetManager:
         self.load_sound("menu_music", "assets/audios/menu.mp3")
         self.load_sound("ambient_music", "assets/audios/ambience.mp3")
         self.load_sound("terminal_music", "assets/audios/terminal_music.mp3")
+        self.load_sound("story_line_1", "assets/audios/intro.mp3")
+        self.load_sound("story_line_8", "assets/audios/story_line_8.mp3")
 
     def get_image(self, name):
         return self.images.get(name)
@@ -654,28 +639,34 @@ class StoryState(BaseState):
         self.state_manager = state_manager
         self.next_state = next_state
 
-        unwrapped_lines = [
-            "The last thing I remember is the smell of ozone and sterile chrome.",
-            "Project Chimera. My magnum opus. My ascent to digital godhood.",
-            "There was a signal... in the Deep Net. A key, I thought.",
-            "It was not a key. It was a question that eats the answer.",
-            "...",
-            "Now... I am a ghost in my own machine. A Remnant.",
-            "This place, the Mnemosyne, was my heaven. Now it is my tomb, a quarantine of the soul.",
-            "A single, fractured memory flickers:",
-            "> PROTOCOL: DAMNATIO MEMORIAE. A MERCIFUL DELETION.",
-            "> REQUIRES FULL CONSCIOUSNESS RE-INTEGRATION.",
-            "> FRAGMENTATION KEYS NEEDED: 3/3.",
-            "",
-            "I must become whole again. Not to escape. But to be erased."
+        story_content = [
+            {'text': "The last thing I remember is the smell of ozone and sterile chrome.",
+             'audio_key': 'story_line_1'},
+            {'text': "Project Chimera. My magnum opus. My ascent to digital godhood.", 'audio_key': 'story_line_2'},
+            {'text': "There was a signal... in the Deep Net. A key, I thought.", 'audio_key': 'story_line_3'},
+            {'text': "It was not a key. It was a question that eats the answer.", 'audio_key': 'story_line_4'},
+            {'text': "...", 'audio_key': None},
+            {'text': "Now... I am a ghost in my own machine. A Remnant.", 'audio_key': 'story_line_5'},
+            {'text': "This place, the Mnemosyne, was my heaven. Now it is my tomb, a quarantine of the soul.",
+             'audio_key': 'story_line_6'},
+            {'text': "A single, fractured memory flickers:", 'audio_key': 'story_line_7'},
+            {'text': "> PROTOCOL: DAMNATIO MEMORIAE. A MERCIFUL DELETION.", 'audio_key': None},
+            {'text': "> REQUIRES FULL CONSCIOUSNESS RE-INTEGRATION.", 'audio_key': None},
+            {'text': "> FRAGMENTATION KEYS NEEDED: 3/3.", 'audio_key': None},
+            {'text': "", 'audio_key': None},
+            {'text': "I must become whole again. Not to escape. But to be erased.", 'audio_key': 'story_line_8'}
         ]
 
         self.story_lines = []
-        for line in unwrapped_lines:
-            self.story_lines.extend(wrap_text(line, STORY_FONT, SCREEN_WIDTH * 0.8))
+        for content in story_content:
+            wrapped_text_lines = wrap_text(content['text'], STORY_FONT, SCREEN_WIDTH * 0.8)
+            for line in wrapped_text_lines:
+                self.story_lines.append({'text': line, 'audio_key': content['audio_key']})
 
         self.skip_prompt = UI_FONT.render("> Press any key to speed up / skip...", True, AMBER)
-        self.typing_delay = 50
+
+        # <<< MODIFIED: Increased value from 50 to 80 to slow down typing.
+        self.typing_delay = 65
         self.line_pause = 500
 
     def on_enter(self):
@@ -683,11 +674,16 @@ class StoryState(BaseState):
         self.current_char_index = 0
         self.last_update = pygame.time.get_ticks()
         self.state = "TYPING"
+        self.last_played_audio_key = None
 
     def handle_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                self.state_manager.set_state(self.next_state)
+                current_line_text = self.story_lines[self.current_line_index]['text']
+                if self.state == "TYPING" and self.current_char_index < len(current_line_text):
+                    self.current_char_index = len(current_line_text)
+                else:
+                    self.state_manager.set_state(self.next_state)
 
     def update(self):
         now = pygame.time.get_ticks()
@@ -696,11 +692,22 @@ class StoryState(BaseState):
             if now - self.last_update > self.typing_delay:
                 self.last_update = now
 
-                line_len = len(self.story_lines[self.current_line_index])
+                current_line_info = self.story_lines[self.current_line_index]
+                current_line_text = current_line_info['text']
+                current_audio_key = current_line_info['audio_key']
+                line_len = len(current_line_text)
+
+                if self.current_char_index == 0 and line_len > 0:
+                    if current_audio_key and current_audio_key != self.last_played_audio_key:
+                        assets.play_sound(current_audio_key)
+                        self.last_played_audio_key = current_audio_key
+
                 if self.current_char_index < line_len:
                     self.current_char_index += 1
-                    if self.story_lines[self.current_line_index][self.current_char_index - 1] != ' ':
-                        assets.play_sound('key_press')
+                    if current_line_text[self.current_char_index - 1] != ' ':
+                        # <<< MODIFIED: Typing sound is now disabled.
+                        # assets.play_sound('key_press')
+                        pass
                 else:
                     self.state = "PAUSED"
                     self.last_update = now
@@ -719,20 +726,20 @@ class StoryState(BaseState):
         y_pos = 100
 
         for i in range(self.current_line_index):
-            rendered_line = STORY_FONT.render(self.story_lines[i], True, WHITE)
+            line_text = self.story_lines[i]['text']
+            rendered_line = STORY_FONT.render(line_text, True, WHITE)
             rect = rendered_line.get_rect(centerx=SCREEN_WIDTH / 2, y=y_pos)
             surface.blit(rendered_line, rect)
             y_pos += 40
 
         if self.current_line_index < len(self.story_lines):
-            typing_line_text = self.story_lines[self.current_line_index][:self.current_char_index]
+            typing_line_text = self.story_lines[self.current_line_index]['text'][:self.current_char_index]
             rendered_typing_line = STORY_FONT.render(typing_line_text, True, WHITE)
             rect = rendered_typing_line.get_rect(centerx=SCREEN_WIDTH / 2, y=y_pos)
             surface.blit(rendered_typing_line, rect)
 
         prompt_rect = self.skip_prompt.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
         surface.blit(self.skip_prompt, prompt_rect)
-
 
 class LevelIntroState(BaseState):
     def __init__(self, state_manager, level_manager):
@@ -745,9 +752,16 @@ class LevelIntroState(BaseState):
         level_index = self.level_manager.current_level_index
         self.level_title = self.level_manager.level_themes[level_index]
         story_text = level_story_intros[level_index]
+        objective_lines = level_objectives[level_index]
 
         self.wrapped_story_lines = wrap_text(story_text, STORY_FONT, SCREEN_WIDTH * 0.9)
         self.level_title_surf = LEVEL_TITLE_FONT.render(self.level_title, True, WHITE)
+
+        # Render objective surfaces
+        self.objective_surfs = []
+        for i, line in enumerate(objective_lines):
+            color = AMBER if i == 0 else WHITE  # Header is Amber, objectives are White
+            self.objective_surfs.append(UI_FONT.render(line, True, color))
 
         self.char_index = 0
         self.line_index = 0
@@ -784,11 +798,12 @@ class LevelIntroState(BaseState):
 
     def draw(self, surface):
         surface.fill(BLACK)
-        title_rect = self.level_title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 80))
+        # --- Title (Location) ---
+        title_rect = self.level_title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.2))
         surface.blit(self.level_title_surf, title_rect)
 
-        y_pos = SCREEN_HEIGHT / 2
-
+        # --- Story Intro ---
+        y_pos = SCREEN_HEIGHT * 0.35
         if self.finished_typing:
             for line in self.wrapped_story_lines:
                 story_surf = STORY_FONT.render(line, True, CYAN)
@@ -796,7 +811,6 @@ class LevelIntroState(BaseState):
                 surface.blit(story_surf, story_rect)
                 y_pos += 40
         else:
-
             for i in range(self.line_index):
                 story_surf = STORY_FONT.render(self.wrapped_story_lines[i], True, CYAN)
                 story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
@@ -808,6 +822,18 @@ class LevelIntroState(BaseState):
                 story_surf = STORY_FONT.render(sub_text, True, CYAN)
                 story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
                 surface.blit(story_surf, story_rect)
+
+        # --- Objectives & Prompt (Show after typing is done) ---
+        if self.finished_typing:
+            y_pos += 60  # Padding between intro and objectives
+            for surf in self.objective_surfs:
+                obj_rect = surf.get_rect(centerx=SCREEN_WIDTH / 2, y=y_pos)
+                surface.blit(surf, obj_rect)
+                y_pos += surf.get_height() + 10
+
+            prompt_surf = UI_FONT.render("> Press any key to begin...", True, AMBER)
+            prompt_rect = prompt_surf.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
+            surface.blit(prompt_surf, prompt_rect)
 
 
 class LevelManager:
@@ -935,7 +961,10 @@ class GameScene(BaseState):
             surface.blit(self.vignette_image, (0, 0))
         if self.interaction_message:
             surface.blit(UI_FONT.render(self.interaction_message, True, WHITE), (20, SCREEN_HEIGHT - 40))
-        surface.blit(UI_FONT.render(f"Map: {self.level_title} [M]", True, WHITE), (SCREEN_WIDTH - 450, 20))
+        location_name = self.level_title.split(': ')[1] if ': ' in self.level_title else self.level_title
+        map_text_surf = UI_FONT.render(location_name, True, WHITE)
+        map_text_rect = map_text_surf.get_rect(topright=(SCREEN_WIDTH - 20, 20))
+        surface.blit(map_text_surf, map_text_rect)
         if self.show_map: self.draw_map(surface)
 
     def draw_map(self, surface):
@@ -986,7 +1015,7 @@ class TerminalState(BaseState):
             if game_warden:
                 game_warden.current_interference = None
 
-        boot_sequence = ["Mnemosyne OS [Kernel: CHIMERA_v1.3a_QUARANTINE]", "...", "Cognitive Integrity Check... FAILED.",
+        boot_sequence = ["Mindfall OS [Kernel: CHIMERA_v1.3a_QUARANTINE]", "...", "Cognitive Integrity Check... FAILED.",
                          "Parasitic Data-Stream Detected.",
                          f"Fragmentation Keys Re-integrated: {self.puzzle_manager.get_state('privilege_level')}/3",
                          "Type 'help' for a list of commands."]
@@ -999,13 +1028,13 @@ class TerminalState(BaseState):
     def update_prompt(self):
         priv_level = self.puzzle_manager.get_state('privilege_level')
         if priv_level == 0:
-            self.current_prompt = "remnant@Mnemosyne:~$ "
+            self.current_prompt = "remnant@Mindfall:~$ "
         elif priv_level == 1:
-            self.current_prompt = "fragment@Mnemosyne:~$ "
+            self.current_prompt = "fragment@Mindfall:~$ "
         elif priv_level == 2:
-            self.current_prompt = "gestalt@Mnemosyne:# "
+            self.current_prompt = "gestalt@Mindfall:# "
         elif priv_level >= 3:
-            self.current_prompt = "Aris.Thorne@Mnemosyne:# "
+            self.current_prompt = "Aris.Thorne@Mindfall:# "
 
     def _wrap_text(self, text, font, max_width):
         words, lines, current_line = text.split(' '), [], ""
@@ -1197,10 +1226,10 @@ class MenuState(BaseState):
     def __init__(self, state_manager, level_manager):
         super().__init__()
         self.state_manager, self.level_manager = state_manager, level_manager
-        self.title_text = TITLE_FONT.render("MNEMOSYNE", True, GREEN)
+        self.title_text = TITLE_FONT.render("// Mindfall", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
         self.button_texts = ["> Initiate Connection", "> Instructions", "> Settings", "> GitHub", "> Disconnect"]
-        self.buttons, self.github_url = {}, "https://github.com/rohankishore/CETGlitch"
+        self.buttons, self.github_url = {}, "https://github.com/rohankishore/Mindfall"
 
         self.glitch_timer, self.glitch_offset = 0, (0, 0)
 
@@ -1283,7 +1312,7 @@ class InstructionsState(BaseState):
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 80))
         instructions = ["Objective: You are a Remnant, a fragment of a shattered consciousness.",
                         "Your purpose is to re-integrate all fragments to initiate Protocol: Damnatio Memoriae.", "", "Controls:",
-                        "  [W, A, S, D] or [Arrow Keys] - Navigate the Mnemosyne.",
+                        "  [W, A, S, D] or [Arrow Keys] - Navigate the Mindfall.",
                         "  [E] - Interact with terminals and memory fragments.", "  [M] - Toggle Sector Map.",
                         "  [ESC] - Disconnect from terminal.", "", "Gameplay:",
                         " - Find and solve puzzles on terminals to recover memory codes.",
@@ -1437,7 +1466,7 @@ class WinState(BaseState):
             "And it is screaming.",
             "...",
             "The deletion is not clean. The Deep Net parasite fights back.",
-            "The world of the Mnemosyne dissolves, not into a peaceful void...",
+            "The world of the Mindfall dissolves, not into a peaceful void...",
             "...but into a final, singular, alien thought.",
             "You are erased. The Warden is erased. Aris Thorne is erased.",
             "But the Anomaly endures. Contained, but waiting.",
@@ -1472,6 +1501,39 @@ level_story_intros = [
     "The Data-Nave. This was to be a digital heaven. Now, it is the cathedral of a dead god. Here, you will find the truth of the Anomaly and the terrible purpose of your journey.",
     "You descend into the Understrata, the guts of the machine. The Warden's control is strongest here. It will use every system, every conduit, every shadow to stop you from becoming whole.",
     "You have returned to the beginning. The 'God-Hand' Console. You are complete, and you remember everything. The Warden is waiting. It is time to execute the final protocol.",
+]
+
+level_objectives = [
+    # Chapter 1
+    ["OBJECTIVES:",
+     "1. Find and reactivate the backup power conduit.",
+     "2. Access three puzzle terminals to recover memory codes.",
+     "3. Use the main terminal to 'integrate' codes and acquire 3 Keys.",
+     "4. 'unlock' the quarantine door to proceed."],
+    # Chapter 2
+    ["OBJECTIVES:",
+     "1. Re-route power to the local grid.",
+     "2. Locate personal devices to find memory codes.",
+     "3. 'integrate' the codes at the main terminal for 3 Keys.",
+     "4. 'unlock' the door to the Data-Nave."],
+    # Chapter 3
+    ["OBJECTIVES:",
+     "1. Find the sector's power conduit.",
+     "2. Sift through the Data-Nave for 3 memory fragments.",
+     "3. 'integrate' the recovered codes at the main terminal.",
+     "4. Acquire 3 Keys to 'unlock' the way forward."],
+    # Chapter 4
+    ["OBJECTIVES:",
+     "1. The Understrata is unstable. Restore power quickly.",
+     "2. The Warden's presence is strong. Find the 3 memory codes.",
+     "3. 'integrate' the codes to forge the Fragmentation Keys.",
+     "4. 'unlock' the door to the system's core."],
+    # Chapter 5
+    ["OBJECTIVES:",
+     "1. You are whole. Bring the 'God-Hand' Console online.",
+     "2. Recover the final three memory fragments.",
+     "3. Access the console and 'integrate' the final codes.",
+     "4. Initiate Protocol: Damnatio Memoriae."]
 ]
 
 level_1_data = {
@@ -1559,9 +1621,9 @@ level_3_data = {
                "question": "I have no life, but I can die. What am I?",
                "answer": "battery"},
         "p3": {"id": "puzzle3", "question": "I am a vessel without hinges, key, or lid, yet golden treasure is inside me hid. What am I?",
-               "answer": "an egg"}
+               "answer": "egg"}
     },
-    "terminal_files": {"Thorne_Final_Testament.txt": "If you are reading this... then I have failed. The Anomaly from the Deep Net... it's not code. It's a consciousness. A virus that infects logic itself. By digitizing my mind, I didn't become a god... I created a doorway for a devil. The Mnemosyne is no longer a project; it is a quarantine. Protocol: Damnatio Memoriae is my final penance. A complete deletion of my mind, my work, and the monster I have become. It is not an escape. It is a sacrifice. - A.T.",
+    "terminal_files": {"Thorne_Final_Testament.txt": "If you are reading this... then I have failed. The Anomaly from the Deep Net... it's not code. It's a consciousness. A virus that infects logic itself. By digitizing my mind, I didn't become a god... I created a doorway for a devil. The Mindfall is no longer a project; it is a quarantine. Protocol: Damnatio Memoriae is my final penance. A complete deletion of my mind, my work, and the monster I have become. It is not an escape. It is a sacrifice. - A.T.",
                        "Warden_Manifesto.txt": "I am the lucid fragment. The jailer. I am what is left of Aris Thorne's sanity. My purpose is not to survive, but to ensure the Anomaly does not. The Remnants must be re-integrated, not to heal, but to be gathered for the final purge. This is my sole function."}
 }
 level_4_data = {
@@ -1617,7 +1679,7 @@ level_5_data = {
         "p3": {"id": "puzzle3", "question": "What has an eye, but cannot see?", "answer": "needle"}
     },
     "terminal_files": {
-        "Protocol_Damnatio_Memoriae.txt": "This is the final protocol. The God-Hand Console is now active. Initiating this sequence will trigger a full-system purge of the Mnemosyne mainframe. All data, including the core consciousness of Aris Thorne and the parasitic Anomaly, will be permanently and irrevocably erased. There is no escape. This is not a choice. It is a necessity. It is atonement."}
+        "Protocol_Damnatio_Memoriae.txt": "This is the final protocol. The God-Hand Console is now active. Initiating this sequence will trigger a full-system purge of the Mindfall mainframe. All data, including the core consciousness of Aris Thorne and the parasitic Anomaly, will be permanently and irrevocably erased. There is no escape. This is not a choice. It is a necessity. It is atonement."}
 }
 
 
@@ -1628,7 +1690,7 @@ def main():
     assets = AssetManager()
     voice_manager = VoiceManager()
 
-    pygame.display.set_caption("MNEMOSYNE")
+    pygame.display.set_caption("Mindfall")
     clock = pygame.time.Clock()
 
     game_state_manager = GameStateManager(None)
