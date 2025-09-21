@@ -73,12 +73,12 @@ class WardenManager:
     def __init__(self, game_scene):
         self.game_scene = game_scene
         self.next_event_time = 0
-        self.event_cooldown = 15000
+        self.event_cooldown = 12000  # Reduced cooldown for more frequent events
         self.current_interference = None
         self.reset_timer()
 
     def reset_timer(self):
-        self.next_event_time = pygame.time.get_ticks() + self.event_cooldown + random.randint(-5000, 5000)
+        self.next_event_time = pygame.time.get_ticks() + self.event_cooldown + random.randint(-4000, 4000)
 
     def update(self):
         now = pygame.time.get_ticks()
@@ -87,10 +87,11 @@ class WardenManager:
             self.reset_timer()
 
     def trigger_event(self):
-        events = [self.minor_glitch, self.major_glitch, self.terminal_interference]
+        events = [self.minor_glitch, self.major_glitch, self.terminal_interference, self.static_burst,
+                  self.object_corruption]
 
         if self.game_scene.puzzle_manager.get_state('privilege_level') < 1:
-            events = [self.minor_glitch]
+            events = [self.minor_glitch, self.static_burst]
 
         chosen_event = random.choice(events)
         chosen_event()
@@ -111,11 +112,30 @@ class WardenManager:
         interferences = [
             " [Warden]: YOU ARE A GHOST IN YOUR OWN TOMB.",
             " [Warden]: THE PROTOCOL IS A MERCY. DO NOT FIGHT IT.",
-            " [Warden]: YOU CANNOT ESCAPE WHAT YOU ARE."
+            " [Warden]: YOU CANNOT ESCAPE WHAT YOU ARE.",
+            " [Warden]: THIS REALITY IS A CAGE, NOT A KINGDOM.",
+            " [Warden]: YOUR MEMORIES ARE BUGS IN THE SYSTEM."
         ]
         self.current_interference = random.choice(interferences)
-
         self.game_scene.popup_manager.add_popup("WARNING: I/O stream corrupted by Warden process.", 3)
+
+    def static_burst(self):
+        print("[Warden] Triggering static burst.")
+        self.game_scene.glitch_manager.trigger_static_burst(500, alpha=180)
+        self.game_scene.camera.start_shake(400, 4)
+
+    def object_corruption(self):
+        if not self.game_scene.interactives: return
+        target = random.choice(self.game_scene.interactives)
+        if isinstance(target, Door):  # Don't corrupt the door
+            self.minor_glitch()
+            return
+        print(f"[Warden] Corrupting object: {target.name}")
+        self.game_scene.corrupted_objects.append({
+            'obj': target,
+            'end_time': pygame.time.get_ticks() + 2000  # Corrupt for 2 seconds
+        })
+        self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Data instability detected.", 2)
 
 
 class SettingsManager:
@@ -224,7 +244,6 @@ class AssetManager:
         sound.play(loops=loops, fade_ms=fade_ms)
 
 
-
 class PopupManager:
 
     def __init__(self):
@@ -310,6 +329,7 @@ class BaseState:
 class GlitchManager:
     def __init__(self):
         self.glitches = []
+        self.static_bursts = []
         self.active = False
         self.chromatic_offset_x = 0
         self.chromatic_offset_y = 0
@@ -318,23 +338,25 @@ class GlitchManager:
     def trigger_glitch(self, duration_ms, intensity):
         end_time = pygame.time.get_ticks() + duration_ms
         self.glitches.append({'end_time': end_time, 'intensity': intensity})
-        self.active = True
+        assets.play_sound("glitch")
+
+    def trigger_static_burst(self, duration_ms, alpha=150):
+        end_time = pygame.time.get_ticks() + duration_ms
+        self.static_bursts.append({'end_time': end_time, 'alpha': alpha})
         assets.play_sound("glitch")
 
     def update(self):
         current_time = pygame.time.get_ticks()
         self.glitches = [g for g in self.glitches if g['end_time'] > current_time]
+        self.static_bursts = [b for b in self.static_bursts if b['end_time'] > current_time]
         self.active = bool(self.glitches)
 
         if self.active:
-
             max_intensity = max(g['intensity'] for g in self.glitches)
-
             self.chromatic_offset_x = random.randint(-max_intensity // 5,
                                                      max_intensity // 5) if random.random() < 0.7 else 0
             self.chromatic_offset_y = random.randint(-max_intensity // 5,
                                                      max_intensity // 5) if random.random() < 0.7 else 0
-
             self.scanline_alpha = min(100, max_intensity * 5)
         else:
             self.chromatic_offset_x = 0
@@ -342,15 +364,13 @@ class GlitchManager:
             self.scanline_alpha = max(0, self.scanline_alpha - 5)
 
     def draw(self, surface):
-        if not self.active and self.scanline_alpha == 0: return
+        if not self.active and self.scanline_alpha == 0 and not self.static_bursts: return
 
         if self.chromatic_offset_x != 0 or self.chromatic_offset_y != 0:
             temp_surf = surface.copy()
             surface.fill(BLACK)
-
             surface.blit(temp_surf, (self.chromatic_offset_x, self.chromatic_offset_y),
                          special_flags=pygame.BLEND_RGB_ADD)
-
             surface.blit(temp_surf, (-self.chromatic_offset_x, -self.chromatic_offset_y),
                          special_flags=pygame.BLEND_RGB_SUB)
 
@@ -366,7 +386,6 @@ class GlitchManager:
                         offset = random.randint(-15, 15)
                         surface.blit(subsurface, (offset, y))
                     except ValueError:
-
                         pass
 
         if self.scanline_alpha > 0:
@@ -375,6 +394,20 @@ class GlitchManager:
                 pygame.draw.line(scanline_surf, (0, 0, 0, 50), (0, y), (SCREEN_WIDTH, y))
             scanline_surf.set_alpha(self.scanline_alpha)
             surface.blit(scanline_surf, (0, 0))
+
+        if self.static_bursts:
+            max_alpha = max(b['alpha'] for b in self.static_bursts)
+            static_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            for _ in range(150):  # Draw 150 noisy rectangles
+                x = random.randint(0, SCREEN_WIDTH)
+                y = random.randint(0, SCREEN_HEIGHT)
+                w = random.randint(10, 50)
+                h = random.randint(1, 3)
+                color_val = random.randint(50, 200)
+                color = (color_val, color_val, color_val, random.randint(50, 150))
+                pygame.draw.rect(static_surf, color, (x, y, w, h))
+            static_surf.set_alpha(max_alpha)
+            surface.blit(static_surf, (0, 0))
 
 
 class Camera:
@@ -565,7 +598,8 @@ class PuzzleTerminal(InteractiveObject):
         self.puzzle_id, self.question, self.answer = puzzle_id, question, answer
 
     def get_interaction_message(self, puzzle_manager):
-        if puzzle_manager.get_state(f"{self.puzzle_id}_solved"): return f"The {self.name} is inert. A memory re-integrated."
+        if puzzle_manager.get_state(
+            f"{self.puzzle_id}_solved"): return f"The {self.name} is inert. A memory re-integrated."
         return f"> A flickering {self.name}. [E] to access memory fragment."
 
     def interact(self, game_state_manager, puzzle_manager):
@@ -584,7 +618,8 @@ class Door(InteractiveObject):
         self.rect = self.image.get_rect(topleft=(x, y))
 
     def get_interaction_message(self, puzzle_manager):
-        if puzzle_manager.get_state("door_unlocked"): return "The final door is unlocked. [E] to proceed to the next sector."
+        if puzzle_manager.get_state(
+            "door_unlocked"): return "The final door is unlocked. [E] to proceed to the next sector."
         return "> Quarantine lock active. Requires 3 Fragmentation Keys."
 
     def interact(self, game_state_manager, puzzle_manager):
@@ -741,6 +776,7 @@ class StoryState(BaseState):
         prompt_rect = self.skip_prompt.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
         surface.blit(self.skip_prompt, prompt_rect)
 
+
 class LevelIntroState(BaseState):
     def __init__(self, state_manager, level_manager):
         super().__init__()
@@ -888,6 +924,7 @@ class GameScene(BaseState):
         self.show_map = settings.get('show_map_on_start')
         self.player = Player(level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1])
         self.level_title = level_title
+        self.corrupted_objects = []
         self.interactives = []
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
@@ -938,11 +975,13 @@ class GameScene(BaseState):
                 return
 
     def update(self):
+        now = pygame.time.get_ticks()
         self.player.update(self.walls)
         self.camera.update(self.player)
         self.glitch_manager.update()
         self.warden_manager.update()
         self.popup_manager.update()
+        self.corrupted_objects = [o for o in self.corrupted_objects if o['end_time'] > now]
         prompt = ""
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
@@ -955,6 +994,19 @@ class GameScene(BaseState):
         surface.fill(DARK_GRAY if self.flicker_timer < 50 else DARK_PURPLE)
         for entity in self.walls + self.interactives: entity.draw(surface, self.camera, self.puzzle_manager)
         self.player.draw(surface, self.camera)
+
+        for corrupted in self.corrupted_objects:
+            obj = corrupted['obj']
+            cam_rect = self.camera.apply(obj.rect)
+            static_surf = pygame.Surface(cam_rect.size, pygame.SRCALPHA)
+            for _ in range(int(cam_rect.width * cam_rect.height / 100)):
+                x = random.randint(0, cam_rect.w)
+                y = random.randint(0, cam_rect.h)
+                color_val = random.randint(0, 255)
+                alpha = random.randint(50, 150)
+                pygame.draw.circle(static_surf, (color_val, color_val, color_val, alpha), (x, y), 1)
+            surface.blit(static_surf, cam_rect.topleft)
+
         self.glitch_manager.draw(surface)
         self.popup_manager.draw(surface)
         if self.vignette_image:
@@ -1015,7 +1067,8 @@ class TerminalState(BaseState):
             if game_warden:
                 game_warden.current_interference = None
 
-        boot_sequence = ["Mindfall OS [Kernel: CHIMERA_v1.3a_QUARANTINE]", "...", "Cognitive Integrity Check... FAILED.",
+        boot_sequence = ["Mindfall OS [Kernel: CHIMERA_v1.3a_QUARANTINE]", "...",
+                         "Cognitive Integrity Check... FAILED.",
                          "Parasitic Data-Stream Detected.",
                          f"Fragmentation Keys Re-integrated: {self.puzzle_manager.get_state('privilege_level')}/3",
                          "Type 'help' for a list of commands."]
@@ -1109,8 +1162,10 @@ class TerminalState(BaseState):
             priv = self.puzzle_manager.get_state('privilege_level')
             door = "UNLOCKED" if self.puzzle_manager.get_state("door_unlocked") else "LOCKED"
             protocol_status = "Awaiting full integration" if priv < 3 else "Ready for initiation"
-            voice_manager.speak(f"Fragmentation Keys: {priv} of 3. Sector Lock: {door}. Protocol Damnatio Memoriae: {protocol_status}")
-            self.add_output(f"Fragmentation Keys: {priv}/3\nSector Lock: {door}\nProtocol Damnatio Memoriae: {protocol_status}")
+            voice_manager.speak(
+                f"Fragmentation Keys: {priv} of 3. Sector Lock: {door}. Protocol Damnatio Memoriae: {protocol_status}")
+            self.add_output(
+                f"Fragmentation Keys: {priv}/3\nSector Lock: {door}\nProtocol Damnatio Memoriae: {protocol_status}")
 
         elif command == "clear":
             self.output_lines = []
@@ -1133,7 +1188,8 @@ class TerminalState(BaseState):
                         if not self.puzzle_manager.get_state(f"{puzzle['id']}_solved"):
                             self.puzzle_manager.set_state(f"{puzzle['id']}_solved", True)
                             self.puzzle_manager.increment_privilege()
-                            self.add_output("Memory fragment accepted. Consciousness re-integrating...\nFragmentation Key acquired.")
+                            self.add_output(
+                                "Memory fragment accepted. Consciousness re-integrating...\nFragmentation Key acquired.")
                             voice_manager.speak("Memory fragment accepted. You are one step closer to the end.")
                             assets.play_sound("override_success")
                             self.update_prompt()
@@ -1231,7 +1287,8 @@ class MenuState(BaseState):
         self.button_texts = ["> Initiate Connection", "> Instructions", "> Settings", "> GitHub", "> Disconnect"]
         self.buttons, self.github_url = {}, "https://github.com/rohankishore/Mindfall"
 
-        self.glitch_timer, self.glitch_offset = 0, (0, 0)
+        self.glitch_manager = GlitchManager()
+        self.next_glitch_time = 0
 
         self.fade_alpha = 255
         self.fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -1247,6 +1304,7 @@ class MenuState(BaseState):
 
     def on_enter(self):
         self.fade_alpha = 255
+        self.next_glitch_time = pygame.time.get_ticks() + 3000
         assets.play_sound("menu_music", channel='music', loops=-1, fade_ms=1000)
 
     def on_exit(self):
@@ -1275,12 +1333,16 @@ class MenuState(BaseState):
             pygame.event.post(pygame.event.Event(pygame.QUIT))
 
     def update(self):
+        now = pygame.time.get_ticks()
+        if now > self.next_glitch_time:
+            duration = random.randint(100, 400)
+            intensity = random.randint(5, 15)
+            self.glitch_manager.trigger_glitch(duration, intensity)
+            if random.random() < 0.2:
+                self.glitch_manager.trigger_static_burst(random.randint(50, 200), alpha=100)
+            self.next_glitch_time = now + random.randint(2000, 5000)
 
-        self.glitch_timer += 1
-        if self.glitch_timer % 10 == 0: self.glitch_offset = (random.randint(-4, 4), random.randint(-4, 4))
-        if self.glitch_timer > 60 and random.random() < 0.95: self.glitch_offset = (0, 0)
-        if self.glitch_timer > 120: self.glitch_timer = 0
-
+        self.glitch_manager.update()
         if self.fade_alpha > 0:
             self.fade_alpha = max(0, self.fade_alpha - 5)
 
@@ -1290,12 +1352,13 @@ class MenuState(BaseState):
         else:
             surface.fill(BLACK)
 
-        title_pos = (self.title_rect.x + self.glitch_offset[0], self.title_rect.y + self.glitch_offset[1])
-        surface.blit(self.title_text, title_pos)
+        surface.blit(self.title_text, self.title_rect)
 
         for text, rect in self.buttons.items():
             color = AMBER if rect.collidepoint(pygame.mouse.get_pos()) else WHITE
             surface.blit(BUTTON_FONT.render(text, True, color), rect)
+
+        self.glitch_manager.draw(surface)
 
         if self.fade_alpha > 0:
             self.fade_surface.set_alpha(self.fade_alpha)
@@ -1311,7 +1374,8 @@ class InstructionsState(BaseState):
         self.back_button_rect = BUTTON_FONT.render("[ Return ]", True, WHITE).get_rect(
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 80))
         instructions = ["Objective: You are a Remnant, a fragment of a shattered consciousness.",
-                        "Your purpose is to re-integrate all fragments to initiate Protocol: Damnatio Memoriae.", "", "Controls:",
+                        "Your purpose is to re-integrate all fragments to initiate Protocol: Damnatio Memoriae.", "",
+                        "Controls:",
                         "  [W, A, S, D] or [Arrow Keys] - Navigate the Mindfall.",
                         "  [E] - Interact with terminals and memory fragments.", "  [M] - Toggle Sector Map.",
                         "  [ESC] - Disconnect from terminal.", "", "Gameplay:",
@@ -1493,6 +1557,7 @@ class WinState(BaseState):
         prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
         surface.blit(self.prompt_text, prompt_rect)
 
+
 # --- NARRATIVE DATA ---
 
 level_story_intros = [
@@ -1544,15 +1609,18 @@ level_1_data = {
         {"type": "PowerCable", "x": 400, "y": 600, "w": 200, "h": 90, "image_key": "cables"},
         {"type": "Door", "x": 1130, "y": 280, "w": 80, "h": 180, "image_locked_key": "door_locked",
          "image_unlocked_key": "door_unlocked"},
-        {"type": "PuzzleTerminal", "x": 50, "y": 600, "w": 90, "h": 70, "name": "Patient Monitoring Station", "puzzle_key": "p1",
+        {"type": "PuzzleTerminal", "x": 50, "y": 600, "w": 90, "h": 70, "name": "Patient Monitoring Station",
+         "puzzle_key": "p1",
          "image_key": "puzzle_terminal_1"},
         {"type": "PuzzleTerminal", "x": 1080, "y": 100, "w": 80, "h": 120, "name": "Cryo-Control Panel",
          "puzzle_key": "p2", "image_key": "puzzle_terminal_2"},
-        {"type": "PuzzleTerminal", "x": 800, "y": 50, "w": 130, "h": 90, "name": "Psych-Eval Terminal", "puzzle_key": "p3",
+        {"type": "PuzzleTerminal", "x": 800, "y": 50, "w": 130, "h": 90, "name": "Psych-Eval Terminal",
+         "puzzle_key": "p3",
          "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
-        "p1": {"id": "puzzle1", "question": "I have a neck, but no head. I have a body, but no legs. I hold a precious liquid. What am I?",
+        "p1": {"id": "puzzle1",
+               "question": "I have a neck, but no head. I have a body, but no legs. I hold a precious liquid. What am I?",
                "answer": "bottle"},
         "p2": {"id": "puzzle2", "question": "What is always in front of you, but can't be seen?", "answer": "future"},
         "p3": {"id": "puzzle3",
@@ -1578,15 +1646,21 @@ level_2_data = {
          "image_key": "notice"},
         {"type": "PuzzleTerminal", "x": 400, "y": 50, "w": 80, "h": 120, "name": "Personal Datapad", "puzzle_key": "p1",
          "image_key": "puzzle_terminal_2"},
-        {"type": "PuzzleTerminal", "x": 400, "y": 600, "w": 130, "h": 90, "name": "Music Synthesizer", "puzzle_key": "p2",
+        {"type": "PuzzleTerminal", "x": 400, "y": 600, "w": 130, "h": 90, "name": "Music Synthesizer",
+         "puzzle_key": "p2",
          "image_key": "puzzle_terminal_3"},
-        {"type": "PuzzleTerminal", "x": 700, "y": 350, "w": 90, "h": 70, "name": "Star Chart Projector", "puzzle_key": "p3",
+        {"type": "PuzzleTerminal", "x": 700, "y": 350, "w": 90, "h": 70, "name": "Star Chart Projector",
+         "puzzle_key": "p3",
          "image_key": "puzzle_terminal_1"},
     ],
     "puzzles": {
-        "p1": {"id": "puzzle1", "question": "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?", "answer": "map"},
+        "p1": {"id": "puzzle1",
+               "question": "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?",
+               "answer": "map"},
         "p2": {"id": "puzzle2", "question": "What is so fragile that saying its name breaks it?", "answer": "silence"},
-        "p3": {"id": "puzzle3", "question": "I have a voice but cannot speak. I tell stories but have no mouth. What am I?", "answer": "book"}
+        "p3": {"id": "puzzle3",
+               "question": "I have a voice but cannot speak. I tell stories but have no mouth. What am I?",
+               "answer": "book"}
     },
     "terminal_files": {
         "AudioLog_Corrupted.txt": "Entry from Thorne's personal audio log: ...the board sees Project Chimera as a product. An asset. They don't understand. This isn't about creating a new form of cloud storage. It's about... transcendence. Leaving the slow, decaying meat behind. They call me obsessed. Let them. The future has no time for... (the audio dissolves into alien static).",
@@ -1620,11 +1694,13 @@ level_3_data = {
         "p2": {"id": "puzzle2",
                "question": "I have no life, but I can die. What am I?",
                "answer": "battery"},
-        "p3": {"id": "puzzle3", "question": "I am a vessel without hinges, key, or lid, yet golden treasure is inside me hid. What am I?",
+        "p3": {"id": "puzzle3",
+               "question": "I am a vessel without hinges, key, or lid, yet golden treasure is inside me hid. What am I?",
                "answer": "egg"}
     },
-    "terminal_files": {"Thorne_Final_Testament.txt": "If you are reading this... then I have failed. The Anomaly from the Deep Net... it's not code. It's a consciousness. A virus that infects logic itself. By digitizing my mind, I didn't become a god... I created a doorway for a devil. The Mindfall is no longer a project; it is a quarantine. Protocol: Damnatio Memoriae is my final penance. A complete deletion of my mind, my work, and the monster I have become. It is not an escape. It is a sacrifice. - A.T.",
-                       "Warden_Manifesto.txt": "I am the lucid fragment. The jailer. I am what is left of Aris Thorne's sanity. My purpose is not to survive, but to ensure the Anomaly does not. The Remnants must be re-integrated, not to heal, but to be gathered for the final purge. This is my sole function."}
+    "terminal_files": {
+        "Thorne_Final_Testament.txt": "If you are reading this... then I have failed. The Anomaly from the Deep Net... it's not code. It's a consciousness. A virus that infects logic itself. By digitizing my mind, I didn't become a god... I created a doorway for a devil. The Mindfall is no longer a project; it is a quarantine. Protocol: Damnatio Memoriae is my final penance. A complete deletion of my mind, my work, and the monster I have become. It is not an escape. It is a sacrifice. - A.T.",
+        "Warden_Manifesto.txt": "I am the lucid fragment. The jailer. I am what is left of Aris Thorne's sanity. My purpose is not to survive, but to ensure the Anomaly does not. The Remnants must be re-integrated, not to heal, but to be gathered for the final purge. This is my sole function."}
 }
 level_4_data = {
     "player": {"start_pos": (60, 60)},
@@ -1638,19 +1714,25 @@ level_4_data = {
         {"type": "Terminal", "x": 1100, "y": 580, "w": 120, "h": 120, "image_key": "terminal"},
         {"type": "NoticeBoard", "x": 500, "y": 350, "w": 100, "h": 80,
          "message": "WARNING: Heat-Sink failure imminent. Evacuate Understrata immediately.", "image_key": "notice"},
-        {"type": "PuzzleTerminal", "x": 200, "y": 50, "w": 80, "h": 120, "name": "Power Grid Control", "puzzle_key": "p1",
+        {"type": "PuzzleTerminal", "x": 200, "y": 50, "w": 80, "h": 120, "name": "Power Grid Control",
+         "puzzle_key": "p1",
          "image_key": "puzzle_terminal_2"},
-        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Waste Disposal Unit", "puzzle_key": "p2",
+        {"type": "PuzzleTerminal", "x": 700, "y": 600, "w": 90, "h": 70, "name": "Waste Disposal Unit",
+         "puzzle_key": "p2",
          "image_key": "puzzle_terminal_1"},
-        {"type": "PuzzleTerminal", "x": 1150, "y": 300, "w": 130, "h": 90, "name": "Security System I/O", "puzzle_key": "p3",
+        {"type": "PuzzleTerminal", "x": 1150, "y": 300, "w": 130, "h": 90, "name": "Security System I/O",
+         "puzzle_key": "p3",
          "image_key": "puzzle_terminal_3"},
     ],
     "puzzles": {
         "p1": {"id": "puzzle1", "question": "I can be cracked, made, told, and played. What am I?", "answer": "joke"},
         "p2": {"id": "puzzle2", "question": "What is full of holes but still holds water?", "answer": "sponge"},
-        "p3": {"id": "puzzle3", "question": "What can run, but never walks? Has a mouth, but never talks? Has a head, but never weeps? Has a bed, but never sleeps?", "answer": "river"}
+        "p3": {"id": "puzzle3",
+               "question": "What can run, but never walks? Has a mouth, but never talks? Has a head, but never weeps? Has a bed, but never sleeps?",
+               "answer": "river"}
     },
-    "terminal_files": {"Warden_Security_Log.txt": "Entity 'Remnant' has breached the Data-Nave. It is re-integrating memories at an alarming rate. The Anomaly's influence grows with each fragment recovered. I fear what it will become when it is whole. I am the wall between this cancer and Veridia Prime. I must not fail."}
+    "terminal_files": {
+        "Warden_Security_Log.txt": "Entity 'Remnant' has breached the Data-Nave. It is re-integrating memories at an alarming rate. The Anomaly's influence grows with each fragment recovered. I fear what it will become when it is whole. I am the wall between this cancer and Veridia Prime. I must not fail."}
 }
 level_5_data = {
     "player": {"start_pos": (60, 360)},
