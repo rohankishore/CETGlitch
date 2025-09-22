@@ -1722,13 +1722,11 @@ class SettingsState(BaseState):
         self.map_toggle_button_rect = BUTTON_FONT.render("placeholder", True, WHITE).get_rect(
             center=(SCREEN_WIDTH // 2, slider_y)
         )
+
         self.voice_toggle_button_rect = BUTTON_FONT.render("placeholder", True, WHITE).get_rect(
             center=(SCREEN_WIDTH // 2, slider_y + 80)
         )
-        # <<< ADDED RECT FOR THE NEW BUTTON
-        self.diegetic_ui_toggle_button_rect = BUTTON_FONT.render("placeholder", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2, slider_y + 160)
-        )
+
         self.dragging_slider = None
 
     def handle_events(self, events):
@@ -1745,20 +1743,19 @@ class SettingsState(BaseState):
                 elif self.voice_toggle_button_rect.collidepoint(event.pos):
                     current_value = self.settings.get('enable_voice_narration')
                     self.settings.set('enable_voice_narration', not current_value)
-                # <<< ADDED EVENT HANDLING FOR THE NEW BUTTON
-                elif self.diegetic_ui_toggle_button_rect.collidepoint(event.pos):
-                    current_value = self.settings.get('use_diegetic_ui')
-                    self.settings.set('use_diegetic_ui', not current_value)
                 else:
                     for slider in self.sliders:
                         if slider['rect'].collidepoint(event.pos):
                             self.dragging_slider = slider
                             self.update_slider_value(event.pos)
                             break
+
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 self.dragging_slider = None
+
             if event.type == pygame.MOUSEMOTION and self.dragging_slider:
                 self.update_slider_value(event.pos)
+
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.settings.save_settings()
                 self.state_manager.set_state("MENU")
@@ -1774,12 +1771,15 @@ class SettingsState(BaseState):
     def draw(self, surface):
         surface.fill(BLACK)
         surface.blit(self.title_text, self.title_rect)
+
         mouse_pos = pygame.mouse.get_pos()
 
         for slider in self.sliders:
             label_rect = slider['label'].get_rect(midright=(slider['rect'].left - 20, slider['rect'].centery))
             surface.blit(slider['label'], label_rect)
+
             pygame.draw.rect(surface, DARK_GRAY, slider['rect'], border_radius=5)
+
             current_value = self.settings.get(slider['key'])
             handle_x = slider['rect'].left + slider['rect'].width * current_value
             handle_rect = pygame.Rect(0, 0, 10, slider['rect'].height + 10)
@@ -1800,14 +1800,6 @@ class SettingsState(BaseState):
         self.voice_toggle_button_rect = voice_toggle_surf.get_rect(center=(SCREEN_WIDTH // 2, 580))
         surface.blit(voice_toggle_surf, self.voice_toggle_button_rect)
 
-        # <<< ADDED DRAWING LOGIC FOR THE NEW BUTTON
-        is_on_diegetic = self.settings.get('use_diegetic_ui')
-        diegetic_text_str = f"Holographic Map: {'ON' if is_on_diegetic else 'OFF'}"
-        diegetic_color = AMBER if self.diegetic_ui_toggle_button_rect.collidepoint(mouse_pos) else WHITE
-        diegetic_surf = BUTTON_FONT.render(diegetic_text_str, True, diegetic_color)
-        self.diegetic_ui_toggle_button_rect = diegetic_surf.get_rect(center=(SCREEN_WIDTH // 2, 660))
-        surface.blit(diegetic_surf, self.diegetic_ui_toggle_button_rect)
-
         back_color = AMBER if self.back_button_rect.collidepoint(mouse_pos) else WHITE
         back_text = BUTTON_FONT.render("[ Save & Return ]", True, back_color)
         surface.blit(back_text, self.back_button_rect)
@@ -1815,6 +1807,7 @@ class SettingsState(BaseState):
         reset_color = AMBER if self.reset_button_rect.collidepoint(mouse_pos) else WHITE
         reset_text = BUTTON_FONT.render("[ Reset Defaults ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
+
 
 class WinState(BaseState):
     def __init__(self):
