@@ -22,6 +22,28 @@ LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
 
+def create_ghost_face_surface(size, alpha=100):
+    """Creates a simple, procedurally generated ghostly face."""
+    face_surf = pygame.Surface(size, pygame.SRCALPHA)
+
+    # Face shape
+    face_color = (200, 220, 255, alpha)
+    pygame.draw.ellipse(face_surf, face_color, face_surf.get_rect().inflate(-10, 0))
+
+    # Eyes (dark, empty sockets)
+    eye_color = (0, 0, 0, alpha + 50)
+    eye_y = size[1] // 2 - 10
+    left_eye_rect = pygame.Rect(size[0] // 2 - 25, eye_y, 15, 20)
+    right_eye_rect = pygame.Rect(size[0] // 2 + 10, eye_y, 15, 20)
+    pygame.draw.ellipse(face_surf, eye_color, left_eye_rect)
+    pygame.draw.ellipse(face_surf, eye_color, right_eye_rect)
+
+    # Mouth (subtle, downturned)
+    mouth_rect = pygame.Rect(size[0] // 2 - 15, size[1] - 30, 30, 15)
+    pygame.draw.arc(face_surf, eye_color, mouth_rect, math.pi, 2 * math.pi, 2)
+
+    return face_surf
+
 class VoiceManager:
     def __init__(self):
         self.engine = None
@@ -112,11 +134,23 @@ class WardenManager:
         if level_index >= 2:
             events.append(self.spawn_hunter)
 
+        if level_index >= 2 and random.random() < 0.05: # 5% chance
+            self.jumpscare()
+            return
+
         if level_index >= 4:
             events.extend([self.major_glitch, self.spawn_hunter, self.environmental_mimicry])
 
         chosen_event = random.choice(events)
         chosen_event()
+
+    def jumpscare(self):
+        """A rare, high-intensity scare event."""
+        print("[Warden] JUMPSCARE TRIGGERED")
+        assets.play_sound("jumpscare")
+        self.game_scene.camera.start_shake(600, 30)
+        self.game_scene.glitch_manager.trigger_static_burst(400, alpha=255)
+        self.game_scene.add_jumpscare_effect()
 
     def spawn_hunter(self):
         if len(self.game_scene.hunters) >= 1:
@@ -243,6 +277,7 @@ class AssetManager:
         self.load_image("data_log", "assets/images/data_log.png")
         self.load_image("background", "assets/images/banner.png")
         self.load_sound("walk", "assets/audios/walk.mp3")
+        self.load_sound("jumpscare", "assets/audios/jumpscare.mp3") # <<< ADDED THIS
         self.load_sound("hum", "assets/audios/hum.mp3")
         self.load_sound("powerup", "assets/audios/powerup.mp3")
         self.load_sound("glitch", "assets/audios/glitch.mp3")
@@ -594,6 +629,9 @@ class Player(Entity):
 
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
         pygame.draw.circle(self.image, CYAN, (size // 2, size // 2), size // 2)
+
+        self.idle_timer = 0 # <<< ADDED THIS
+
 
         # Store start position for resets
         self.start_x, self.start_y = x, y
