@@ -175,45 +175,14 @@ class WardenManager:
         self.next_event_time = 0
         self.event_cooldown = 12000
         self.current_interference = None
-        self.stalker_event_active = False
-        self.stalker_event_end_time = 0
         self.reset_timer()
-
-    def start_stalker_event(self, duration_ms=30000):
-        if self.stalker_event_active: return
-        print("[Warden] Starting STALKER EVENT")
-        self.stalker_event_active = True
-        self.stalker_event_end_time = pygame.time.get_ticks() + duration_ms
-        self.game_scene.is_stalker_active = True
-
-        assets.get_sound("ambient_music").fadeout(1500)
-        assets.play_sound("stalker_ambience", loops=-1, fade_ms=2000)
-
-        if self.game_scene.player_light:
-            self.game_scene.player_light.dim_multiplier = 0.5
-
-        self.game_scene.popup_manager.add_popup("...It knows you're here...", 4)
-
-    def stop_stalker_event(self):
-        print("[Warden] Ending STALKER EVENT")
-        self.stalker_event_active = False
-        self.game_scene.is_stalker_active = False
-
-        assets.get_sound("stalker_ambience").stop()
-        assets.play_sound("ambient_music", channel='music', loops=-1, fade_ms=2000)
-
-        if self.game_scene.player_light:
-            self.game_scene.player_light.dim_multiplier = 1.0
 
     def reset_timer(self):
         self.next_event_time = pygame.time.get_ticks() + self.event_cooldown + random.randint(-4000, 4000)
 
     def update(self):
         now = pygame.time.get_ticks()
-        if self.stalker_event_active and now > self.stalker_event_end_time:
-            self.stop_stalker_event()
-
-        if not self.stalker_event_active and now > self.next_event_time:
+        if now > self.next_event_time:
             self.trigger_event()
             self.reset_timer()
 
@@ -245,10 +214,6 @@ class WardenManager:
 
         if level_index >= 2 and random.random() < 0.05: # 5% chance
             self.jumpscare()
-            return
-
-        if level_index >= 2 and random.random() < 0.15: # 15% chance in later levels
-            self.start_stalker_event()
             return
 
         if level_index >= 4:
@@ -680,41 +645,39 @@ class WardenHunter(Entity):
         size = 40
         super().__init__(x, y, size, size, name="warden_hunter")
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
+        # Simple pulsating red square aesthetic
         pygame.draw.rect(self.image, RED, (0, 0, size, size), 4)
         pygame.draw.rect(self.image, DARK_RED, (4, 4, size - 8, size - 8))
-        self.speed = 2.5 # Slightly faster
+        self.speed = 2
         self.move_timer = 0
-        self.direction = pygame.math.Vector2(random.choice([(1, 0), (-1, 0), (0, 1), (0, -1)]))
+        self.move_duration = random.randint(1000, 3000)
+        self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1)])
         self.pulse_timer = 0
         self.base_image = self.image.copy()
 
-    def update(self, player, walls, is_stalking=False): # <<< ADDED is_stalking FLAG
+    def update(self, player, walls):
         now = pygame.time.get_ticks()
+
+        # Pulsating visual effect
         self.pulse_timer += 0.1
         alpha = 128 + math.sin(self.pulse_timer) * 127
         self.image = self.base_image.copy()
         self.image.set_alpha(alpha)
 
-        # <<< MODIFIED AI LOGIC >>>
-        if is_stalking:
-            # Stalker Mode: Move directly towards the player
-            direction_vector = pygame.math.Vector2(player.rect.center) - pygame.math.Vector2(self.rect.center)
-            if direction_vector.length() > 0:
-                self.direction = direction_vector.normalize()
-        else:
-            # Normal Mode: Random patrol
-            if now > self.move_timer:
-                self.direction = pygame.math.Vector2(random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)]))
-                self.move_timer = now + random.randint(1000, 3000)
+        # Simple movement A
+        if now > self.move_timer:
+            self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)])  # Can pause
+            self.move_timer = now + random.randint(1000, 3000)
 
-        dx = self.direction.x * self.speed
-        dy = self.direction.y * self.speed
+        dx = self.direction[0] * self.speed
+        dy = self.direction[1] * self.speed
 
         self.rect.x += dx
         self.check_collision('x', walls, dx)
         self.rect.y += dy
         self.check_collision('y', walls, dy)
 
+        # Check for collision with player
         if self.rect.colliderect(player.rect):
             player.get_caught()
 
