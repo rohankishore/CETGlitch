@@ -181,8 +181,7 @@ class SettingsManager:
             'music_volume': 0.7,
             'sfx_volume': 1.0,
             'show_map_on_start': True,
-            'enable_voice_narration': True,
-            'use_diegetic_ui': True  # <<< ADDED THIS NEW SETTING
+            'enable_voice_narration': True
         }
         self.settings = self.defaults.copy()
         self.load_settings()
@@ -209,6 +208,7 @@ class SettingsManager:
     def reset_to_defaults(self):
         self.settings = self.defaults.copy()
         self.save_settings()
+
 
 class AssetManager:
 
@@ -1200,78 +1200,37 @@ class GameScene(BaseState):
         map_text_surf = UI_FONT.render(location_name, True, WHITE)
         map_text_rect = map_text_surf.get_rect(topright=(SCREEN_WIDTH - 20, 20))
         surface.blit(map_text_surf, map_text_rect)
-        if self.show_map: self.draw_map(surface, self.camera)
+        if self.show_map: self.draw_map(surface)
 
-    def draw_map(self, surface, camera):
-        # --- Hologram Configuration ---
-        map_world_radius = 450  # The radius of the game world (in pixels) to show on the map
-        map_render_size = 350  # The on-screen size of the map projection
+    def draw_map(self, surface):
+        map_surf = pygame.Surface((250, 150))
+        map_surf.fill(MAP_GRAY)
+        map_surf.set_alpha(200)
+        all_rects = [w.rect for w in self.walls] + [p.rect for p in self.interactives]
+        if not all_rects: return
+        min_x, max_x = min(r.left for r in all_rects), max(r.right for r in all_rects)
+        min_y, max_y = min(r.top for r in all_rects), max(r.bottom for r in all_rects)
+        world_w, world_h = max_x - min_x, max_y - min_y
+        if world_w == 0 or world_h == 0: return
+        scale = min(250 / world_w, 150 / world_h)
 
-        player_pos_world = pygame.math.Vector2(self.player.rect.center)
-        player_pos_screen = pygame.math.Vector2(camera.apply(self.player.rect).center)
+        def scale_rect(rect):
+            return pygame.Rect((rect.x - min_x) * scale, (rect.y - min_y) * scale, rect.w * scale, rect.h * scale)
 
-        # --- Create The Hologram Surface ---
-        map_surf = pygame.Surface((map_render_size, map_render_size), pygame.SRCALPHA)
-        map_rect = map_surf.get_rect(center=player_pos_screen)
+        for wall in self.walls: pygame.draw.rect(map_surf, MAP_WALL, scale_rect(wall.rect))
+        for obj in self.interactives:
+            color = AMBER
+            if isinstance(obj, Door): color = RED
+            if isinstance(obj, Terminal): color = WHITE
+            pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
 
-        # This scale converts large world distances to small map coordinates
-        scale = map_render_size / (map_world_radius * 2)
+        # Draw hunter on map
+        for hunter in self.hunters:
+            pygame.draw.rect(map_surf, DARK_RED, scale_rect(hunter.rect))
 
-        # --- Draw Hologram Background & Border ---
-        pygame.draw.rect(map_surf, (10, 25, 45, 180), (0, 0, map_render_size, map_render_size), border_radius=15)
-        pygame.draw.rect(map_surf, (80, 180, 220, 180), (0, 0, map_render_size, map_render_size), 2, border_radius=15)
+        pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
+        surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
 
-        # --- Draw Entities onto the Hologram ---
-        entities_to_draw = self.walls + self.interactives + self.hunters
-        for entity in entities_to_draw:
-            entity_pos_world = pygame.math.Vector2(entity.rect.center)
-            vec_to_entity = entity_pos_world - player_pos_world
-
-            # Only draw entities within the map's radius
-            if vec_to_entity.length() < map_world_radius:
-                # Convert the world vector to a position on the map surface
-                map_pos = vec_to_entity * scale + pygame.math.Vector2(map_render_size / 2, map_render_size / 2)
-
-                size_w = max(2, int(entity.rect.width * scale))
-                size_h = max(2, int(entity.rect.height * scale))
-
-                color = MAP_WALL
-                if isinstance(entity, Door):
-                    color = RED
-                elif isinstance(entity, Terminal):
-                    color = WHITE
-                elif isinstance(entity, PuzzleTerminal):
-                    color = AMBER
-                elif isinstance(entity, CodeFragment):
-                    color = CYAN
-                elif isinstance(entity, WardenHunter):
-                    color = DARK_RED
-
-                ent_rect = pygame.Rect(0, 0, size_w, size_h)
-                ent_rect.center = map_pos
-                pygame.draw.rect(map_surf, color, ent_rect)
-
-        # --- Draw Player Icon in the center ---
-        p_center = (map_render_size / 2, map_render_size / 2)
-        pygame.draw.circle(map_surf, CYAN, p_center, 6)
-        pygame.draw.circle(map_surf, WHITE, p_center, 8, 2)
-
-        # --- Apply Holographic Effects ---
-        # Scanlines for that classic hologram look
-        for y in range(0, map_render_size, 4):
-            pygame.draw.line(map_surf, (0, 0, 0, 100), (0, y), (map_render_size, y), 1)
-
-        # A subtle pulse/flicker effect
-        flicker_alpha = 190 + math.sin(pygame.time.get_ticks() * 0.01) * 50
-        map_surf.set_alpha(flicker_alpha)
-
-        # --- Draw the Final Hologram to the Main Screen ---
-        surface.blit(map_surf, map_rect)
-
-        # --- Draw Projection Lines from the Player ---
-        map_corners = [map_rect.topleft, map_rect.topright, map_rect.bottomright, map_rect.bottomleft]
-        for corner in map_corners:
-            pygame.draw.line(surface, (50, 100, 150, 80), player_pos_screen, corner, 2)
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files, code_fragment_manager):
