@@ -1033,8 +1033,12 @@ class LevelManager:
         game_scene = GameScene(self.state_manager, puzzle_manager, self, level_data,
                                self.level_themes[self.current_level_index])
         self.state_manager.add_state("GAME", game_scene)
+
         terminal_files = level_data.get("terminal_files", {})
-        terminal_scene = TerminalState(self.state_manager, puzzle_manager, level_data["puzzles"], terminal_files)
+        # Pass the new CodeFragmentManager from the GameScene to the Terminal
+        terminal_scene = TerminalState(self.state_manager, puzzle_manager, level_data["puzzles"], terminal_files,
+                                       game_scene.code_fragment_manager)
+
         self.state_manager.add_state("TERMINAL", terminal_scene)
         self.state_manager.set_state("LEVEL_INTRO")
 
