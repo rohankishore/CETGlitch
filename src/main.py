@@ -68,25 +68,24 @@ class Light:
     """Represents a single light source in the world."""
 
     def __init__(self, owner, radius, color, pulse_intensity=0.0, pulse_speed=0.0):
-        self.owner = owner  # The entity this light is attached to (Player, Hunter, etc.)
+        self.owner = owner
         self.radius = radius
         self.color = color
         self.texture = get_light_texture(radius)
-        self.pulse_intensity = pulse_intensity  # How much the light flickers (0.0 to 1.0)
+        self.pulse_intensity = pulse_intensity
         self.pulse_speed = pulse_speed
         self.pulse_timer = random.random() * math.pi * 2
+        self.dim_multiplier = 1.0  # <<< ADDED: Used to dim the light during events
 
 
 class LightingManager:
     """Manages all lights and renders the final lighting effect."""
 
     def __init__(self, width, height, ambient_color=(20, 20, 40)):
-        # The main surface where lights are drawn
         self.light_surface = pygame.Surface((width, height))
-        # The base level of darkness/color when no lights are present
         self.ambient_color = ambient_color
         self.lights = []
-        self.occluders = []  # Kept for potential future shadow implementation
+        self.occluders = []
 
     def add_light(self, light):
         if light not in self.lights:
@@ -96,33 +95,31 @@ class LightingManager:
         self.occluders = [o.rect for o in occluders]
 
     def draw(self, target_surface, camera):
-        # 1. Fill the surface with the ambient darkness
         self.light_surface.fill(self.ambient_color)
 
-        # 2. Draw each light onto the surface
         for light in self.lights:
             light.pulse_timer += light.pulse_speed
 
-            # Calculate the pulse effect for flickering
             pulse_multiplier = 1.0 - (math.sin(light.pulse_timer) * 0.5 + 0.5) * light.pulse_intensity
+
+            # <<< MODIFIED: Apply the dim multiplier here
+            final_multiplier = pulse_multiplier * light.dim_multiplier
+
             current_color = (
-                int(light.color[0] * pulse_multiplier),
-                int(light.color[1] * pulse_multiplier),
-                int(light.color[2] * pulse_multiplier)
+                int(light.color[0] * final_multiplier),
+                int(light.color[1] * final_multiplier),
+                int(light.color[2] * final_multiplier)
             )
 
-            # Create a temporary surface to colorize the white light texture
             color_surf = pygame.Surface(light.texture.get_size(), pygame.SRCALPHA)
             color_surf.fill(current_color)
             temp_texture = light.texture.copy()
             temp_texture.blit(color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
-            # Position and draw the colored light texture
             pos = camera.apply(light.owner.rect).center
             light_rect = temp_texture.get_rect(center=pos)
             self.light_surface.blit(temp_texture, light_rect, special_flags=pygame.BLEND_RGBA_ADD)
 
-        # 3. Blend the final light map onto the main game screen
         target_surface.blit(self.light_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
 class VoiceManager:
@@ -359,6 +356,7 @@ class AssetManager:
         self.load_image("background", "assets/images/banner.png")
         self.load_sound("walk", "assets/audios/walk.mp3")
         self.load_sound("jumpscare", "assets/audios/jumpscare.mp3") # <<< ADDED THIS
+        self.load_sound("stalker_ambience", "assets/audios/stalker_ambience.mp3") # <<< ADD THIS
         self.load_sound("hum", "assets/audios/hum.mp3")
         self.load_sound("powerup", "assets/audios/powerup.mp3")
         self.load_sound("glitch", "assets/audios/glitch.mp3")
@@ -647,39 +645,41 @@ class WardenHunter(Entity):
         size = 40
         super().__init__(x, y, size, size, name="warden_hunter")
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
-        # Simple pulsating red square aesthetic
         pygame.draw.rect(self.image, RED, (0, 0, size, size), 4)
         pygame.draw.rect(self.image, DARK_RED, (4, 4, size - 8, size - 8))
-        self.speed = 2
+        self.speed = 2.5 # Slightly faster
         self.move_timer = 0
-        self.move_duration = random.randint(1000, 3000)
-        self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1)])
+        self.direction = pygame.math.Vector2(random.choice([(1, 0), (-1, 0), (0, 1), (0, -1)]))
         self.pulse_timer = 0
         self.base_image = self.image.copy()
 
-    def update(self, player, walls):
+    def update(self, player, walls, is_stalking=False): # <<< ADDED is_stalking FLAG
         now = pygame.time.get_ticks()
-
-        # Pulsating visual effect
         self.pulse_timer += 0.1
         alpha = 128 + math.sin(self.pulse_timer) * 127
         self.image = self.base_image.copy()
         self.image.set_alpha(alpha)
 
-        # Simple movement A
-        if now > self.move_timer:
-            self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)])  # Can pause
-            self.move_timer = now + random.randint(1000, 3000)
+        # <<< MODIFIED AI LOGIC >>>
+        if is_stalking:
+            # Stalker Mode: Move directly towards the player
+            direction_vector = pygame.math.Vector2(player.rect.center) - pygame.math.Vector2(self.rect.center)
+            if direction_vector.length() > 0:
+                self.direction = direction_vector.normalize()
+        else:
+            # Normal Mode: Random patrol
+            if now > self.move_timer:
+                self.direction = pygame.math.Vector2(random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)]))
+                self.move_timer = now + random.randint(1000, 3000)
 
-        dx = self.direction[0] * self.speed
-        dy = self.direction[1] * self.speed
+        dx = self.direction.x * self.speed
+        dy = self.direction.y * self.speed
 
         self.rect.x += dx
         self.check_collision('x', walls, dx)
         self.rect.y += dy
         self.check_collision('y', walls, dy)
 
-        # Check for collision with player
         if self.rect.colliderect(player.rect):
             player.get_caught()
 
