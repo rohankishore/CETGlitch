@@ -1119,49 +1119,76 @@ class GameScene(BaseState):
         self.corrupted_objects = []
         self.hunters = []
         self.interactives = []
+        self.walls = [Wall(w[0], w[1], w[2], w[3]) for w in level_data["walls"]]
+
+        self.lighting_manager = LightingManager(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.lighting_manager.set_occluders(self.walls)
+        player_light = Light(owner=self.player, radius=250, color=(70, 160, 180), pulse_intensity=0.2, pulse_speed=0.05)
+        self.lighting_manager.add_light(player_light)
+
+        self.reflection_effects = []
+        self.jumpscare_effect = None
+        self.ghost_face_texture = create_ghost_face_surface((80, 120))
 
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
+            new_obj = None
             if obj_type == "Terminal":
-                self.interactives.append(Terminal(x, y, w, h, image=assets.get_image(obj_data["image_key"])))
+                new_obj = Terminal(x, y, w, h, image=assets.get_image(obj_data["image_key"]))
+                light = Light(owner=new_obj, radius=180, color=(80, 180, 130), pulse_intensity=0.4, pulse_speed=0.03)
+                self.lighting_manager.add_light(light)
             elif obj_type == "PowerCable":
-                self.interactives.append(PowerCable(x, y, w, h, image=assets.get_image(obj_data["image_key"])))
+                new_obj = PowerCable(x, y, w, h, image=assets.get_image(obj_data["image_key"]))
+                new_obj.light = Light(owner=new_obj, radius=200, color=(200, 180, 100), pulse_intensity=0.6,
+                                      pulse_speed=0.1)
             elif obj_type == "Door":
-                self.interactives.append(Door(x, y, w, h, image_locked=assets.get_image(obj_data["image_locked_key"]),
-                                              image_unlocked=assets.get_image(obj_data["image_unlocked_key"])))
+                new_obj = Door(x, y, w, h, image_locked=assets.get_image(obj_data["image_locked_key"]),
+                               image_unlocked=assets.get_image(obj_data["image_unlocked_key"]))
             elif obj_type == "PuzzleTerminal":
                 p_info = level_data["puzzles"][obj_data["puzzle_key"]]
-                self.interactives.append(
-                    PuzzleTerminal(x, y, w, h, obj_data["name"], p_info["id"], p_info["question"], p_info["answer"],
-                                   image=assets.get_image(obj_data["image_key"])))
+                new_obj = PuzzleTerminal(x, y, w, h, obj_data["name"], p_info["id"], p_info["question"],
+                                         p_info["answer"],
+                                         image=assets.get_image(obj_data["image_key"]))
+                light = Light(owner=new_obj, radius=150, color=(150, 100, 200), pulse_intensity=0.3, pulse_speed=0.02)
+                self.lighting_manager.add_light(light)
             elif obj_type == "NoticeBoard":
-                self.interactives.append(
-                    NoticeBoard(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"])))
+                new_obj = NoticeBoard(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"]))
             elif obj_type == "CorruptedDataLog":
-                self.interactives.append(
-                    CorruptedDataLog(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"])))
+                new_obj = CorruptedDataLog(x, y, w, h, obj_data["message"],
+                                           image=assets.get_image(obj_data["image_key"]))
             elif obj_type == "CodeFragment":
-                self.interactives.append(
-                    CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"]))
+                new_obj = CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"])
+                light = Light(owner=new_obj, radius=80, color=(180, 180, 220), pulse_intensity=0.8, pulse_speed=0.1)
+                self.lighting_manager.add_light(light)
 
-        self.walls, self.flicker_timer, self.interaction_message = [Wall(w[0], w[1], w[2], w[3]) for w in
-                                                                    level_data["walls"]], 0, ""
+            if new_obj:
+                self.interactives.append(new_obj)
+
+        self.flicker_timer, self.interaction_message = 0, ""
 
     def add_hunter(self):
-        # Spawn hunter away from the player
         px, py = self.player.rect.center
         spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)
-
-        # Simple check to avoid spawning right on top of the player
-        while math.hypot(px - spawn_x, py - spawn_y) < 300:
+        while math.hypot(px - spawn_x, py - spawn_y) < 400:
             spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)
+        new_hunter = WardenHunter(spawn_x, spawn_y)
+        self.hunters.append(new_hunter)
+        hunter_light = Light(owner=new_hunter, radius=300, color=(220, 40, 40), pulse_intensity=0.5, pulse_speed=0.1)
+        self.lighting_manager.add_light(hunter_light)
 
-        self.hunters.append(WardenHunter(spawn_x, spawn_y))
+    def add_jumpscare_effect(self):
+        end_time = pygame.time.get_ticks() + 400
+        face = create_ghost_face_surface((SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), alpha=200)
+        self.jumpscare_effect = {'surface': face, 'end_time': end_time}
 
     def on_enter(self):
         assets.play_sound("ambient_music", channel='music', loops=-1, fade_ms=1000)
         if self.puzzle_manager.get_state("power_restored"):
             assets.play_sound("powerup", loops=-1)
+            for obj in self.interactives:
+                if isinstance(obj, PowerCable) and hasattr(obj, 'light'):
+                    if obj.light not in self.lighting_manager.lights:
+                        self.lighting_manager.add_light(obj.light)
 
     def on_exit(self):
         self.player.stop_sound()
@@ -1180,22 +1207,54 @@ class GameScene(BaseState):
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
                 assets.play_sound("interact")
+                if isinstance(obj, PowerCable) and not self.puzzle_manager.get_state("power_restored"):
+                    if hasattr(obj, 'light') and obj.light not in self.lighting_manager.lights:
+                        self.lighting_manager.add_light(obj.light)
                 obj.interact(self.state_manager, self.puzzle_manager)
                 return
+
+    def update_reflections(self):
+        if self.player.dx == 0 and self.player.dy == 0:
+            self.player.idle_timer += 1
+        else:
+            self.player.idle_timer = 0
+
+        if self.player.idle_timer > 180 and random.random() < 0.01:
+            for item in self.interactives:
+                is_reflective = False
+                if isinstance(item, Terminal) and not self.puzzle_manager.get_state("power_restored"):
+                    is_reflective = True
+                if isinstance(item, PuzzleTerminal) and self.puzzle_manager.get_state(f"{item.puzzle_id}_solved"):
+                    is_reflective = True
+                if is_reflective:
+                    dist = math.hypot(item.rect.centerx - self.player.rect.centerx,
+                                      item.rect.centery - self.player.rect.centery)
+                    if dist < 120:
+                        print(f"[Reflection] Triggered on {item.name}")
+                        self.reflection_effects.append({
+                            'surface': self.ghost_face_texture,
+                            'rect': item.rect,
+                            'end_time': pygame.time.get_ticks() + 1000
+                        })
+                        self.player.idle_timer = 0
+                        return
 
     def update(self):
         now = pygame.time.get_ticks()
         self.player.update(self.walls)
 
+        self.update_reflections()
+        self.reflection_effects = [r for r in self.reflection_effects if now < r['end_time']]
+        if self.jumpscare_effect and now > self.jumpscare_effect['end_time']:
+            self.jumpscare_effect = None
+
         for hunter in self.hunters:
             hunter.update(self.player, self.walls)
-
         self.camera.update(self.player)
         self.glitch_manager.update()
         self.warden_manager.update()
         self.popup_manager.update()
         self.corrupted_objects = [o for o in self.corrupted_objects if o['end_time'] > now]
-
         prompt = ""
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
@@ -1209,11 +1268,19 @@ class GameScene(BaseState):
 
         for entity in self.walls + self.interactives:
             entity.draw(surface, self.camera, self.puzzle_manager)
-
         for hunter in self.hunters:
             hunter.draw(surface, self.camera)
-
         self.player.draw(surface, self.camera)
+
+        self.lighting_manager.draw(surface, self.camera)
+
+        for effect in self.reflection_effects:
+            reflection_rect = self.camera.apply(effect['rect'])
+            face_surf = effect['surface'].copy()
+            progress = (effect['end_time'] - pygame.time.get_ticks()) / 1000.0
+            alpha = math.sin(progress * math.pi) * 150
+            face_surf.set_alpha(alpha)
+            surface.blit(face_surf, face_surf.get_rect(center=reflection_rect.center))
 
         for corrupted in self.corrupted_objects:
             obj = corrupted['obj']
@@ -1231,28 +1298,41 @@ class GameScene(BaseState):
         self.popup_manager.draw(surface)
         if self.vignette_image:
             surface.blit(self.vignette_image, (0, 0))
+
+        if self.show_map:
+            if settings.get('use_diegetic_ui'):
+                self.draw_map_holographic(surface, self.camera)
+            else:
+                self.draw_map_legacy(surface)
+
         if self.interaction_message:
             surface.blit(UI_FONT.render(self.interaction_message, True, WHITE), (20, SCREEN_HEIGHT - 40))
         location_name = self.level_title.split(': ')[1] if ': ' in self.level_title else self.level_title
         map_text_surf = UI_FONT.render(location_name, True, WHITE)
         map_text_rect = map_text_surf.get_rect(topright=(SCREEN_WIDTH - 20, 20))
         surface.blit(map_text_surf, map_text_rect)
-        if self.show_map: self.draw_map(surface)
 
-    def draw_map(self, surface):
+        if self.jumpscare_effect:
+            face_rect = self.jumpscare_effect['surface'].get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
+            surface.blit(self.jumpscare_effect['surface'], face_rect)
+
+    def draw_map_legacy(self, surface):
         map_surf = pygame.Surface((250, 150))
         map_surf.fill(MAP_GRAY)
         map_surf.set_alpha(200)
-        all_rects = [w.rect for w in self.walls] + [p.rect for p in self.interactives]
+        all_rects = [w.rect for w in self.walls] + [p.rect for p in self.interactives] + [h.rect for h in self.hunters]
         if not all_rects: return
-        min_x, max_x = min(r.left for r in all_rects), max(r.right for r in all_rects)
-        min_y, max_y = min(r.top for r in all_rects), max(r.bottom for r in all_rects)
+        min_x = min(r.left for r in all_rects)
+        max_x = max(r.right for r in all_rects)
+        min_y = min(r.top for r in all_rects)
+        max_y = max(r.bottom for r in all_rects)
         world_w, world_h = max_x - min_x, max_y - min_y
         if world_w == 0 or world_h == 0: return
         scale = min(250 / world_w, 150 / world_h)
 
         def scale_rect(rect):
-            return pygame.Rect((rect.x - min_x) * scale, (rect.y - min_y) * scale, rect.w * scale, rect.h * scale)
+            return pygame.Rect((rect.x - min_x) * scale, (rect.y - min_y) * scale, max(1, rect.w * scale),
+                               max(1, rect.h * scale))
 
         for wall in self.walls: pygame.draw.rect(map_surf, MAP_WALL, scale_rect(wall.rect))
         for obj in self.interactives:
@@ -1260,14 +1340,53 @@ class GameScene(BaseState):
             if isinstance(obj, Door): color = RED
             if isinstance(obj, Terminal): color = WHITE
             pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
-
-        # Draw hunter on map
-        for hunter in self.hunters:
-            pygame.draw.rect(map_surf, DARK_RED, scale_rect(hunter.rect))
-
+        for hunter in self.hunters: pygame.draw.rect(map_surf, DARK_RED, scale_rect(hunter.rect))
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
 
+    def draw_map_holographic(self, surface, camera):
+        map_world_radius = 450
+        map_render_size = 350
+        player_pos_world = pygame.math.Vector2(self.player.rect.center)
+        player_pos_screen = pygame.math.Vector2(camera.apply(self.player.rect).center)
+        map_surf = pygame.Surface((map_render_size, map_render_size), pygame.SRCALPHA)
+        map_rect = map_surf.get_rect(center=player_pos_screen)
+        scale = map_render_size / (map_world_radius * 2)
+        pygame.draw.rect(map_surf, (10, 25, 45, 180), (0, 0, map_render_size, map_render_size), border_radius=15)
+        pygame.draw.rect(map_surf, (80, 180, 220, 180), (0, 0, map_render_size, map_render_size), 2, border_radius=15)
+        entities_to_draw = self.walls + self.interactives + self.hunters
+        for entity in entities_to_draw:
+            entity_pos_world = pygame.math.Vector2(entity.rect.center)
+            vec_to_entity = entity_pos_world - player_pos_world
+            if vec_to_entity.length() < map_world_radius:
+                map_pos = vec_to_entity * scale + pygame.math.Vector2(map_render_size / 2, map_render_size / 2)
+                size_w = max(2, int(entity.rect.width * scale))
+                size_h = max(2, int(entity.rect.height * scale))
+                color = MAP_WALL
+                if isinstance(entity, Door):
+                    color = RED
+                elif isinstance(entity, Terminal):
+                    color = WHITE
+                elif isinstance(entity, PuzzleTerminal):
+                    color = AMBER
+                elif isinstance(entity, CodeFragment):
+                    color = CYAN
+                elif isinstance(entity, WardenHunter):
+                    color = DARK_RED
+                ent_rect = pygame.Rect(0, 0, size_w, size_h)
+                ent_rect.center = map_pos
+                pygame.draw.rect(map_surf, color, ent_rect)
+        p_center = (map_render_size / 2, map_render_size / 2)
+        pygame.draw.circle(map_surf, CYAN, p_center, 6)
+        pygame.draw.circle(map_surf, WHITE, p_center, 8, 2)
+        for y in range(0, map_render_size, 4):
+            pygame.draw.line(map_surf, (0, 0, 0, 100), (0, y), (map_render_size, y), 1)
+        flicker_alpha = 190 + math.sin(pygame.time.get_ticks() * 0.01) * 50
+        map_surf.set_alpha(flicker_alpha)
+        surface.blit(map_surf, map_rect)
+        map_corners = [map_rect.topleft, map_rect.topright, map_rect.bottomright, map_rect.bottomleft]
+        for corner in map_corners:
+            pygame.draw.line(surface, (50, 100, 150, 80), player_pos_screen, corner, 2)
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files, code_fragment_manager):
