@@ -175,14 +175,45 @@ class WardenManager:
         self.next_event_time = 0
         self.event_cooldown = 12000
         self.current_interference = None
+        self.stalker_event_active = False
+        self.stalker_event_end_time = 0
         self.reset_timer()
+
+    def start_stalker_event(self, duration_ms=30000):
+        if self.stalker_event_active: return
+        print("[Warden] Starting STALKER EVENT")
+        self.stalker_event_active = True
+        self.stalker_event_end_time = pygame.time.get_ticks() + duration_ms
+        self.game_scene.is_stalker_active = True
+
+        assets.get_sound("ambient_music").fadeout(1500)
+        assets.play_sound("stalker_ambience", loops=-1, fade_ms=2000)
+
+        if self.game_scene.player_light:
+            self.game_scene.player_light.dim_multiplier = 0.5
+
+        self.game_scene.popup_manager.add_popup("...It knows you're here...", 4)
+
+    def stop_stalker_event(self):
+        print("[Warden] Ending STALKER EVENT")
+        self.stalker_event_active = False
+        self.game_scene.is_stalker_active = False
+
+        assets.get_sound("stalker_ambience").stop()
+        assets.play_sound("ambient_music", channel='music', loops=-1, fade_ms=2000)
+
+        if self.game_scene.player_light:
+            self.game_scene.player_light.dim_multiplier = 1.0
 
     def reset_timer(self):
         self.next_event_time = pygame.time.get_ticks() + self.event_cooldown + random.randint(-4000, 4000)
 
     def update(self):
         now = pygame.time.get_ticks()
-        if now > self.next_event_time:
+        if self.stalker_event_active and now > self.stalker_event_end_time:
+            self.stop_stalker_event()
+
+        if not self.stalker_event_active and now > self.next_event_time:
             self.trigger_event()
             self.reset_timer()
 
@@ -214,6 +245,10 @@ class WardenManager:
 
         if level_index >= 2 and random.random() < 0.05: # 5% chance
             self.jumpscare()
+            return
+
+        if level_index >= 2 and random.random() < 0.15: # 15% chance in later levels
+            self.start_stalker_event()
             return
 
         if level_index >= 4:
