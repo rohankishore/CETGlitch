@@ -38,6 +38,65 @@ def get_light_texture(radius):
     return surf
 
 
+class Light:
+    """Represents a single light source in the world."""
+
+    def __init__(self, owner, radius, color, pulse_intensity=0.0, pulse_speed=0.0):
+        self.owner = owner  # The entity this light is attached to (Player, Hunter, etc.)
+        self.radius = radius
+        self.color = color
+        self.texture = get_light_texture(radius)
+        self.pulse_intensity = pulse_intensity  # How much the light flickers (0.0 to 1.0)
+        self.pulse_speed = pulse_speed
+        self.pulse_timer = random.random() * math.pi * 2
+
+
+class LightingManager:
+    """Manages all lights and renders the final lighting effect."""
+
+    def __init__(self, width, height, ambient_color=(20, 20, 40)):
+        # The main surface where lights are drawn
+        self.light_surface = pygame.Surface((width, height))
+        # The base level of darkness/color when no lights are present
+        self.ambient_color = ambient_color
+        self.lights = []
+        self.occluders = []  # Kept for potential future shadow implementation
+
+    def add_light(self, light):
+        self.lights.append(light)
+
+    def set_occluders(self, occluders):
+        self.occluders = [o.rect for o in occluders]
+
+    def draw(self, target_surface, camera):
+        # 1. Fill the surface with the ambient darkness
+        self.light_surface.fill(self.ambient_color)
+
+        # 2. Draw each light onto the surface
+        for light in self.lights:
+            light.pulse_timer += light.pulse_speed
+
+            # Calculate the pulse effect for flickering
+            pulse_multiplier = 1.0 - (math.sin(light.pulse_timer) * 0.5 + 0.5) * light.pulse_intensity
+            current_color = (
+                int(light.color[0] * pulse_multiplier),
+                int(light.color[1] * pulse_multiplier),
+                int(light.color[2] * pulse_multiplier)
+            )
+
+            # Create a temporary surface to colorize the white light texture
+            color_surf = pygame.Surface(light.texture.get_size(), pygame.SRCALPHA)
+            color_surf.fill(current_color)
+            temp_texture = light.texture.copy()
+            temp_texture.blit(color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+            # Position and draw the colored light texture
+            pos = camera.apply(light.owner.rect).center
+            light_rect = temp_texture.get_rect(center=pos)
+            self.light_surface.blit(temp_texture, light_rect, special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 3. Blend the final light map onto the main game screen
+        target_surface.blit(self.light_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
 
 class VoiceManager:
