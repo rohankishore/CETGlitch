@@ -1430,6 +1430,45 @@ class TerminalState(BaseState):
         self.output_lines.extend(self.typewriter_effect["lines"])
         self.typewriter_effect["lines"] = []
 
+    def execute_code(self, frag_id, code):
+        self.add_output(f"Executing code from '{frag_id}'...")
+        game_scene = self.state_manager.states.get("GAME")
+        if not game_scene:
+            self.add_output("FATAL ERROR: Game context not found.");
+            return
+
+        try:
+            target_part, value_part = code.split('=')
+            target_name, attribute = target_part.split('.')
+            value = float(value_part)
+
+            effect_applied = False
+            if target_name == "player" and attribute == "speed":
+                game_scene.player.speed *= value
+                self.add_output(f"Player speed modifier set to {value}x.")
+                effect_applied = True
+            elif target_name == "hunter" and attribute == "speed":
+                if not game_scene.hunters:
+                    self.add_output("Execution failed: No Hunters active in sector.")
+                    return
+                for hunter in game_scene.hunters:
+                    hunter.speed *= value
+                self.add_output(f"All Warden Hunter speed modifiers set to {value}x.")
+                effect_applied = True
+
+            if effect_applied:
+                self.code_fragment_manager.use_fragment(frag_id)
+                assets.play_sound("override_success")
+                self.add_output("...Execution successful. System integrity compromised.")
+                game_scene.warden_manager.trigger_backlash(target_name, value)
+            else:
+                self.add_output("ERROR: Invalid target or attribute in code fragment.")
+                assets.play_sound("terminal_error")
+
+        except Exception as e:
+            self.add_output(f"ERROR: Failed to parse code fragment '{code}'.")
+            assets.play_sound("terminal_error")
+
     def update(self):
         if self.transition_state == 'in':
             self.transition_alpha = max(0, self.transition_alpha - 15)
