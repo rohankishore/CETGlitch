@@ -1158,49 +1158,73 @@ class GameScene(BaseState):
         self.corrupted_objects = []
         self.hunters = []
         self.interactives = []
+        self.walls = [Wall(w[0], w[1], w[2], w[3]) for w in level_data["walls"]]
+
+        # --- LIGHTING SETUP START ---
+        self.lighting_manager = LightingManager(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.lighting_manager.set_occluders(self.walls)
+        player_light = Light(owner=self.player, radius=250, color=(70, 160, 180), pulse_intensity=0.2, pulse_speed=0.05)
+        self.lighting_manager.add_light(player_light)
+        # --- LIGHTING SETUP END ---
 
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
+
+            new_obj = None
             if obj_type == "Terminal":
-                self.interactives.append(Terminal(x, y, w, h, image=assets.get_image(obj_data["image_key"])))
+                new_obj = Terminal(x, y, w, h, image=assets.get_image(obj_data["image_key"]))
+                light = Light(owner=new_obj, radius=180, color=(80, 180, 130), pulse_intensity=0.4, pulse_speed=0.03)
+                self.lighting_manager.add_light(light)
             elif obj_type == "PowerCable":
-                self.interactives.append(PowerCable(x, y, w, h, image=assets.get_image(obj_data["image_key"])))
+                new_obj = PowerCable(x, y, w, h, image=assets.get_image(obj_data["image_key"]))
+                # This light will only be "on" if power is restored (handled in update)
+                new_obj.light = Light(owner=new_obj, radius=200, color=(200, 180, 100), pulse_intensity=0.6,
+                                      pulse_speed=0.1)
             elif obj_type == "Door":
-                self.interactives.append(Door(x, y, w, h, image_locked=assets.get_image(obj_data["image_locked_key"]),
-                                              image_unlocked=assets.get_image(obj_data["image_unlocked_key"])))
+                new_obj = Door(x, y, w, h, image_locked=assets.get_image(obj_data["image_locked_key"]),
+                               image_unlocked=assets.get_image(obj_data["image_unlocked_key"]))
             elif obj_type == "PuzzleTerminal":
                 p_info = level_data["puzzles"][obj_data["puzzle_key"]]
-                self.interactives.append(
-                    PuzzleTerminal(x, y, w, h, obj_data["name"], p_info["id"], p_info["question"], p_info["answer"],
-                                   image=assets.get_image(obj_data["image_key"])))
+                new_obj = PuzzleTerminal(x, y, w, h, obj_data["name"], p_info["id"], p_info["question"],
+                                         p_info["answer"],
+                                         image=assets.get_image(obj_data["image_key"]))
+                light = Light(owner=new_obj, radius=150, color=(150, 100, 200), pulse_intensity=0.3, pulse_speed=0.02)
+                self.lighting_manager.add_light(light)
             elif obj_type == "NoticeBoard":
-                self.interactives.append(
-                    NoticeBoard(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"])))
+                new_obj = NoticeBoard(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"]))
             elif obj_type == "CorruptedDataLog":
-                self.interactives.append(
-                    CorruptedDataLog(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"])))
+                new_obj = CorruptedDataLog(x, y, w, h, obj_data["message"],
+                                           image=assets.get_image(obj_data["image_key"]))
             elif obj_type == "CodeFragment":
-                self.interactives.append(
-                    CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"]))
+                new_obj = CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"])
+                light = Light(owner=new_obj, radius=80, color=(180, 180, 220), pulse_intensity=0.8, pulse_speed=0.1)
+                self.lighting_manager.add_light(light)
 
-        self.walls, self.flicker_timer, self.interaction_message = [Wall(w[0], w[1], w[2], w[3]) for w in
-                                                                    level_data["walls"]], 0, ""
+            if new_obj:
+                self.interactives.append(new_obj)
+
+        self.flicker_timer, self.interaction_message = 0, ""
 
     def add_hunter(self):
-        # Spawn hunter away from the player
         px, py = self.player.rect.center
         spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)
-
-        # Simple check to avoid spawning right on top of the player
-        while math.hypot(px - spawn_x, py - spawn_y) < 300:
+        while math.hypot(px - spawn_x, py - spawn_y) < 400:
             spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)
 
-        self.hunters.append(WardenHunter(spawn_x, spawn_y))
+        new_hunter = WardenHunter(spawn_x, spawn_y)
+        self.hunters.append(new_hunter)
+        # Add a light for the new hunter
+        hunter_light = Light(owner=new_hunter, radius=300, color=(220, 40, 40), pulse_intensity=0.5, pulse_speed=0.1)
+        self.lighting_manager.add_light(hunter_light)
 
     def on_enter(self):
         assets.play_sound("ambient_music", channel='music', loops=-1, fade_ms=1000)
         if self.puzzle_manager.get_state("power_restored"):
             assets.play_sound("powerup", loops=-1)
+            # Find the power cable and turn on its light
+            for obj in self.interactives:
+                if isinstance(obj, PowerCable) and hasattr(obj, 'light'):
+                    self.lighting_manager.add_light(obj.light)
 
     def on_exit(self):
         self.player.stop_sound()
@@ -1219,22 +1243,23 @@ class GameScene(BaseState):
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
                 assets.play_sound("interact")
+                # Special case for turning on the power cable light
+                if isinstance(obj, PowerCable) and not self.puzzle_manager.get_state("power_restored"):
+                    if hasattr(obj, 'light'):
+                        self.lighting_manager.add_light(obj.light)
                 obj.interact(self.state_manager, self.puzzle_manager)
                 return
 
     def update(self):
         now = pygame.time.get_ticks()
         self.player.update(self.walls)
-
         for hunter in self.hunters:
             hunter.update(self.player, self.walls)
-
         self.camera.update(self.player)
         self.glitch_manager.update()
         self.warden_manager.update()
         self.popup_manager.update()
         self.corrupted_objects = [o for o in self.corrupted_objects if o['end_time'] > now]
-
         prompt = ""
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
@@ -1244,16 +1269,20 @@ class GameScene(BaseState):
 
     def draw(self, surface):
         self.flicker_timer = (self.flicker_timer + 1) % 60
+        # The base fill is less important now, but good for a backup
         surface.fill(DARK_GRAY if self.flicker_timer < 50 else DARK_PURPLE)
 
+        # 1. Draw all game world elements
         for entity in self.walls + self.interactives:
             entity.draw(surface, self.camera, self.puzzle_manager)
-
         for hunter in self.hunters:
             hunter.draw(surface, self.camera)
-
         self.player.draw(surface, self.camera)
 
+        # 2. Draw the lighting engine over everything
+        self.lighting_manager.draw(surface, self.camera)
+
+        # 3. Draw corruption, glitches, and UI on top of the lit scene
         for corrupted in self.corrupted_objects:
             obj = corrupted['obj']
             cam_rect = self.camera.apply(obj.rect)
@@ -1300,7 +1329,6 @@ class GameScene(BaseState):
             if isinstance(obj, Terminal): color = WHITE
             pygame.draw.rect(map_surf, color, scale_rect(obj.rect))
 
-        # Draw hunter on map
         for hunter in self.hunters:
             pygame.draw.rect(map_surf, DARK_RED, scale_rect(hunter.rect))
 
