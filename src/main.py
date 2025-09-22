@@ -21,6 +21,24 @@ BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
+light_texture_cache = {}
+
+
+def get_light_texture(radius):
+    if radius in light_texture_cache:
+        return light_texture_cache[radius]
+
+    surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+    for i in range(radius, 0, -1):
+        # Use a power function for a nicer falloff (less linear)
+        alpha = int(255 * (1 - (i / radius)) ** 1.5)
+        pygame.draw.circle(surf, (255, 255, 255, alpha), (radius, radius), i)
+
+    light_texture_cache[radius] = surf
+    return surf
+
+
+
 
 class VoiceManager:
     def __init__(self):
