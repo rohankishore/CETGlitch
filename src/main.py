@@ -88,25 +88,51 @@ class WardenManager:
             self.trigger_event()
             self.reset_timer()
 
+    def trigger_backlash(self, target_name, value):
+        print(f"[Warden] Backlash triggered due to hack on '{target_name}'")
+        self.game_scene.popup_manager.add_popup(
+            "SYS.WARDEN//: Unauthorized execution detected. Deploying countermeasures...", 4)
+        self.game_scene.glitch_manager.trigger_glitch(2000, 30)
+
+        # Specific countermeasures for specific hacks
+        if target_name == "player" and value > 1.0:
+            self.game_scene.popup_manager.add_popup("BACKLASH: Threat signature amplified. Hunter deployed.", 5)
+            self.spawn_hunter()
+        elif target_name == "hunter" and value < 1.0:
+            self.game_scene.popup_manager.add_popup("BACKLASH: System integrity failing. Event frequency increased.", 5)
+            self.event_cooldown = max(4000, self.event_cooldown - 4000)  # Gets angry faster
+            self.next_event_time = pygame.time.get_ticks() + 1000  # Trigger next event soon
+
     def trigger_event(self):
         level_index = self.game_scene.level_manager.current_level_index
         priv_level = self.game_scene.puzzle_manager.get_state('privilege_level')
 
-        # Phase 1: Disruption (Levels 0-1, which are Chapters 1-2)
         events = [self.minor_glitch, self.static_burst]
         if priv_level > 0:
             events.extend([self.object_corruption, self.terminal_interference])
 
-        # Phase 2: Intimidation (Level 2+, which is Chapter 3 onwards)
         if level_index >= 2:
             events.append(self.spawn_hunter)
 
-        # Phase 3: Desperation (Level 4, which is Chapter 5)
         if level_index >= 4:
             events.extend([self.major_glitch, self.spawn_hunter, self.environmental_mimicry])
 
         chosen_event = random.choice(events)
         chosen_event()
+
+    def spawn_hunter(self):
+        if len(self.game_scene.hunters) >= 1:
+            self.object_corruption()
+            return
+
+        print("[Warden] Spawning Hunter entity.")
+        self.game_scene.popup_manager.add_popup("WARNING: Warden process located in this sector.", 3)
+        self.game_scene.add_hunter()
+
+    def environmental_mimicry(self):
+        print("[Warden] Triggering Environmental Mimicry.")
+        self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Reality matrix compromised.", 3)
+        self.major_glitch()
 
     def minor_glitch(self):
         print("[Warden] Triggering minor glitch.")
@@ -123,9 +149,6 @@ class WardenManager:
         print("[Warden] Preparing terminal interference.")
         interferences = [
             " [Warden]: YOU ARE A GHOST IN YOUR OWN TOMB.",
-            " [Warden]: THE PROTOCOL IS A MERCY. DO NOT FIGHT IT.",
-            " [Warden]: YOU CANNOT ESCAPE WHAT YOU ARE.",
-            " [Warden]: THIS REALITY IS A CAGE, NOT A KINGDOM.",
             " [Warden]: YOUR MEMORIES ARE BUGS IN THE SYSTEM."
         ]
         self.current_interference = random.choice(interferences)
@@ -149,20 +172,6 @@ class WardenManager:
         })
         self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Data instability detected.", 2)
 
-    def spawn_hunter(self):
-        if len(self.game_scene.hunters) >= 1:  # Limit to 1 hunter at a time for now
-            self.object_corruption()  # Do something else if hunter exists
-            return
-
-        print("[Warden] Spawning Hunter entity.")
-        self.game_scene.popup_manager.add_popup("WARNING: Warden process located in this sector.", 3)
-        self.game_scene.add_hunter()
-
-    def environmental_mimicry(self):
-        # A placeholder for the more complex mimicry logic. For now, it's a major glitch.
-        print("[Warden] Triggering Environmental Mimicry.")
-        self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Reality matrix compromised.", 3)
-        self.major_glitch()
 
 class SettingsManager:
 
@@ -434,6 +443,25 @@ class GlitchManager:
             static_surf.set_alpha(max_alpha)
             surface.blit(static_surf, (0, 0))
 
+class CodeFragmentManager:
+    def __init__(self):
+        self.fragments = {}  # {'id': 'code_string', ...}
+        self.used_fragments = set()
+
+    def collect_fragment(self, frag_id, code_string):
+        if frag_id not in self.used_fragments:
+            self.fragments[frag_id] = code_string
+            print(f"[CodeFragments] Collected {frag_id}: {code_string}")
+
+    def get_code(self, frag_id):
+        return self.fragments.get(frag_id)
+
+    def use_fragment(self, frag_id):
+        if frag_id in self.fragments:
+            del self.fragments[frag_id]
+            self.used_fragments.add(frag_id)
+
+
 
 class Camera:
     def __init__(self, width, height):
@@ -650,6 +678,38 @@ class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
+
+class CodeFragment(InteractiveObject):
+    def __init__(self, x, y, w, h, fragment_id, code_string, image=None):
+        super().__init__(x, y, w, h, "Code Fragment", image)
+        self.fragment_id = fragment_id
+        self.code_string = code_string
+        # Simple visual: a pulsating data chip
+        self.base_image = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(self.base_image, DARK_GRAY, (0, 0, w, h))
+        pygame.draw.rect(self.base_image, CYAN, (2, 2, w - 4, h - 4), 2)
+        self.image = self.base_image.copy()
+        self.pulse_timer = random.random() * math.pi * 2
+
+    def get_interaction_message(self, puzzle_manager):
+        return f"> A corrupted data chip lies here. ID: {self.fragment_id}. [E] to acquire."
+
+    def interact(self, game_state_manager, puzzle_manager):
+        game_scene = game_state_manager.states["GAME"]
+        game_scene.code_fragment_manager.collect_fragment(self.fragment_id, self.code_string)
+        game_scene.popup_manager.add_popup(f"Code Fragment '{self.fragment_id}' acquired.", 3)
+        # Remove from game world
+        if self in game_scene.interactives:
+            game_scene.interactives.remove(self)
+        assets.play_sound("powerup")
+
+    def draw(self, surface, camera, puzzle_manager=None):
+        # Add a pulsating alpha effect to make it stand out
+        self.pulse_timer += 0.05
+        alpha = 155 + math.sin(self.pulse_timer) * 100
+        self.image = self.base_image.copy()
+        self.image.set_alpha(alpha)
+        super().draw(surface, camera, puzzle_manager)
 
 
 class NoticeBoard(InteractiveObject):
@@ -1002,6 +1062,7 @@ class GameScene(BaseState):
         self.state_manager, self.puzzle_manager, self.level_manager = state_manager, puzzle_manager, level_manager
         self.glitch_manager, self.camera, self.popup_manager = GlitchManager(), Camera(SCREEN_WIDTH,
                                                                                        SCREEN_HEIGHT), PopupManager()
+        self.code_fragment_manager = CodeFragmentManager()
         self.vignette_image = assets.get_image("vignette")
         if self.vignette_image:
             self.vignette_image = pygame.transform.scale(self.vignette_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -1009,7 +1070,7 @@ class GameScene(BaseState):
         self.show_map = settings.get('show_map_on_start')
 
         self.player = Player(level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1])
-        self.player.game_scene = self  # Give player a reference to the scene
+        self.player.game_scene = self
 
         self.level_title = level_title
         self.corrupted_objects = []
@@ -1036,6 +1097,10 @@ class GameScene(BaseState):
             elif obj_type == "CorruptedDataLog":
                 self.interactives.append(
                     CorruptedDataLog(x, y, w, h, obj_data["message"], image=assets.get_image(obj_data["image_key"])))
+            elif obj_type == "CodeFragment":
+                self.interactives.append(
+                    CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"]))
+
         self.walls, self.flicker_timer, self.interaction_message = [Wall(w[0], w[1], w[2], w[3]) for w in
                                                                     level_data["walls"]], 0, ""
 
