@@ -13,7 +13,6 @@ from core.const import *
 pygame.init()
 pygame.mixer.init()
 
-# --- Fonts ---
 UI_FONT = pygame.font.SysFont("Consolas", 24)
 MESSAGE_FONT = pygame.font.SysFont("Consolas", 32)
 TERMINAL_FONT = pygame.font.SysFont("Lucida Console", 20)
@@ -23,16 +22,13 @@ BUTTON_FONT = pygame.font.SysFont("Consolas", 48)
 LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
-
 def create_ghost_face_surface(size, alpha=100):
     """Creates a simple, procedurally generated ghostly face."""
     face_surf = pygame.Surface(size, pygame.SRCALPHA)
 
-    # Face shape
     face_color = (200, 220, 255, alpha)
     pygame.draw.ellipse(face_surf, face_color, face_surf.get_rect().inflate(-10, 0))
 
-    # Eyes (dark, empty sockets)
     eye_color = (0, 0, 0, alpha + 50)
     eye_y = size[1] // 2 - 10
     left_eye_rect = pygame.Rect(size[0] // 2 - 25, eye_y, 15, 20)
@@ -40,16 +36,12 @@ def create_ghost_face_surface(size, alpha=100):
     pygame.draw.ellipse(face_surf, eye_color, left_eye_rect)
     pygame.draw.ellipse(face_surf, eye_color, right_eye_rect)
 
-    # Mouth (subtle, downturned)
     mouth_rect = pygame.Rect(size[0] // 2 - 15, size[1] - 30, 30, 15)
     pygame.draw.arc(face_surf, eye_color, mouth_rect, math.pi, 2 * math.pi, 2)
 
     return face_surf
 
-
-# --- Light Texture Cache ---
 light_texture_cache = {}
-
 
 def get_light_texture(radius):
     """Creates and caches a circular white gradient texture for lights."""
@@ -58,13 +50,12 @@ def get_light_texture(radius):
 
     surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
     for i in range(radius, 0, -1):
-        # Use a power function for a nicer, non-linear falloff
+
         alpha = int(255 * (1 - (i / radius)) ** 1.5)
         pygame.draw.circle(surf, (255, 255, 255, alpha), (radius, radius), i)
 
     light_texture_cache[radius] = surf
     return surf
-
 
 class Light:
     """Represents a single light source in the world."""
@@ -77,8 +68,7 @@ class Light:
         self.pulse_intensity = pulse_intensity
         self.pulse_speed = pulse_speed
         self.pulse_timer = random.random() * math.pi * 2
-        self.dim_multiplier = 1.0  # <<< ADDED: Used to dim the light during events
-
+        self.dim_multiplier = 1.0
 
 class LightingManager:
     """Manages all lights and renders the final lighting effect."""
@@ -104,7 +94,6 @@ class LightingManager:
 
             pulse_multiplier = 1.0 - (math.sin(light.pulse_timer) * 0.5 + 0.5) * light.pulse_intensity
 
-            # <<< MODIFIED: Apply the dim multiplier here
             final_multiplier = pulse_multiplier * light.dim_multiplier
 
             current_color = (
@@ -155,7 +144,6 @@ class VoiceManager:
             thread.daemon = True
             thread.start()
 
-
 def wrap_text(text, font, max_width):
     words = text.split(' ')
     lines = []
@@ -169,7 +157,6 @@ def wrap_text(text, font, max_width):
             current_line = word + " "
     lines.append(current_line.strip())
     return lines
-
 
 class WardenManager:
     def __init__(self, game_scene):
@@ -194,14 +181,13 @@ class WardenManager:
             "SYS.WARDEN//: Unauthorized execution detected. Deploying countermeasures...", 4)
         self.game_scene.glitch_manager.trigger_glitch(2000, 30)
 
-        # Specific countermeasures for specific hacks
         if target_name == "player" and value > 1.0:
             self.game_scene.popup_manager.add_popup("BACKLASH: Threat signature amplified. Hunter deployed.", 5)
             self.spawn_hunter()
         elif target_name == "hunter" and value < 1.0:
             self.game_scene.popup_manager.add_popup("BACKLASH: System integrity failing. Event frequency increased.", 5)
-            self.event_cooldown = max(4000, self.event_cooldown - 4000)  # Gets angry faster
-            self.next_event_time = pygame.time.get_ticks() + 1000  # Trigger next event soon
+            self.event_cooldown = max(4000, self.event_cooldown - 4000)
+            self.next_event_time = pygame.time.get_ticks() + 1000
 
     def trigger_event(self):
         level_index = self.game_scene.level_manager.current_level_index
@@ -214,7 +200,7 @@ class WardenManager:
         if level_index >= 2:
             events.append(self.spawn_hunter)
 
-        if level_index >= 2 and random.random() < 0.05: # 5% chance
+        if level_index >= 2 and random.random() < 0.05:
             self.jumpscare()
             return
 
@@ -284,7 +270,6 @@ class WardenManager:
         })
         self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Data instability detected.", 2)
 
-
 class SettingsManager:
 
     def __init__(self, filepath='settings.json'):
@@ -322,7 +307,6 @@ class SettingsManager:
         self.settings = self.defaults.copy()
         self.save_settings()
 
-
 class AssetManager:
 
     def __init__(self):
@@ -357,8 +341,8 @@ class AssetManager:
         self.load_image("data_log", "assets/images/data_log.png")
         self.load_image("background", "assets/images/banner.png")
         self.load_sound("walk", "assets/audios/walk.mp3")
-        self.load_sound("jumpscare", "assets/audios/jumpscare.mp3") # <<< ADDED THIS
-        self.load_sound("stalker_ambience", "assets/audios/stalker_ambience.mp3") # <<< ADD THIS
+        self.load_sound("jumpscare", "assets/audios/jumpscare.mp3")
+        self.load_sound("stalker_ambience", "assets/audios/stalker_ambience.mp3")
         self.load_sound("hum", "assets/audios/hum.mp3")
         self.load_sound("powerup", "assets/audios/powerup.mp3")
         self.load_sound("glitch", "assets/audios/glitch.mp3")
@@ -391,7 +375,6 @@ class AssetManager:
         final_vol = master_vol * channel_vol
         sound.set_volume(final_vol)
         sound.play(loops=loops, fade_ms=fade_ms)
-
 
 class PopupManager:
 
@@ -437,7 +420,6 @@ class PopupManager:
         for popup in self.popups:
             surface.blit(popup['surface'], popup['rect'])
 
-
 class GameStateManager:
     def __init__(self, initial_state):
         self.states = {}
@@ -459,7 +441,6 @@ class GameStateManager:
 
     def draw(self, surface): self.current_state.draw(surface)
 
-
 class BaseState:
     def __init__(self): pass
 
@@ -473,7 +454,6 @@ class BaseState:
     def update(self): pass
 
     def draw(self, surface): pass
-
 
 class GlitchManager:
     def __init__(self):
@@ -547,7 +527,7 @@ class GlitchManager:
         if self.static_bursts:
             max_alpha = max(b['alpha'] for b in self.static_bursts)
             static_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            for _ in range(150):  # Draw 150 noisy rectangles
+            for _ in range(150):
                 x = random.randint(0, SCREEN_WIDTH)
                 y = random.randint(0, SCREEN_HEIGHT)
                 w = random.randint(10, 50)
@@ -558,10 +538,9 @@ class GlitchManager:
             static_surf.set_alpha(max_alpha)
             surface.blit(static_surf, (0, 0))
 
-
 class CodeFragmentManager:
     def __init__(self):
-        self.fragments = {}  # {'id': 'code_string', ...}
+        self.fragments = {}
         self.used_fragments = set()
 
     def collect_fragment(self, frag_id, code_string):
@@ -576,7 +555,6 @@ class CodeFragmentManager:
         if frag_id in self.fragments:
             del self.fragments[frag_id]
             self.used_fragments.add(frag_id)
-
 
 class Camera:
     def __init__(self, width, height):
@@ -606,7 +584,6 @@ class Camera:
                 y += random.randint(-self.shake_intensity, self.shake_intensity)
         self.rect.topleft = (x, y)
 
-
 class PuzzleManager:
     def __init__(self):
         self.state = {
@@ -625,7 +602,6 @@ class PuzzleManager:
         self.state["privilege_level"] += 1
         print(f"[PuzzleManager] Fragmentation Key re-integrated. Privilege level: {self.state['privilege_level']}")
 
-
 class Entity(pygame.sprite.Sprite):
     def __init__(self, x, y, w, h, name="", image=None):
         super().__init__()
@@ -641,13 +617,12 @@ class Entity(pygame.sprite.Sprite):
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
 
-
 class WardenHunter(Entity):
     def __init__(self, x, y):
         size = 40
         super().__init__(x, y, size, size, name="warden_hunter")
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
-        # Simple pulsating red square aesthetic
+
         pygame.draw.rect(self.image, RED, (0, 0, size, size), 4)
         pygame.draw.rect(self.image, DARK_RED, (4, 4, size - 8, size - 8))
         self.speed = 2
@@ -660,15 +635,13 @@ class WardenHunter(Entity):
     def update(self, player, walls):
         now = pygame.time.get_ticks()
 
-        # Pulsating visual effect
         self.pulse_timer += 0.1
         alpha = 128 + math.sin(self.pulse_timer) * 127
         self.image = self.base_image.copy()
         self.image.set_alpha(alpha)
 
-        # Simple movement A
         if now > self.move_timer:
-            self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)])  # Can pause
+            self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)])
             self.move_timer = now + random.randint(1000, 3000)
 
         dx = self.direction[0] * self.speed
@@ -679,7 +652,6 @@ class WardenHunter(Entity):
         self.rect.y += dy
         self.check_collision('y', walls, dy)
 
-        # Check for collision with player
         if self.rect.colliderect(player.rect):
             player.get_caught()
 
@@ -692,8 +664,7 @@ class WardenHunter(Entity):
                 if direction == 'y':
                     if velocity > 0: self.rect.bottom = entity.rect.top
                     if velocity < 0: self.rect.top = entity.rect.bottom
-                self.direction = (-self.direction[0], -self.direction[1])  # Reverse direction on hit
-
+                self.direction = (-self.direction[0], -self.direction[1])
 
 class Player(Entity):
     def __init__(self, x, y):
@@ -711,12 +682,10 @@ class Player(Entity):
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
         pygame.draw.circle(self.image, CYAN, (size // 2, size // 2), size // 2)
 
-        self.idle_timer = 0 # <<< ADDED THIS
+        self.idle_timer = 0
 
-
-        # Store start position for resets
         self.start_x, self.start_y = x, y
-        self.game_scene = None  # Will be set by GameScene
+        self.game_scene = None
 
     def get_caught(self):
         """Called when the WardenHunter catches the player."""
@@ -725,7 +694,7 @@ class Player(Entity):
             self.game_scene.popup_manager.add_popup("SYS.WARDEN//: Threat neutralized. Resetting...", 2)
             self.game_scene.glitch_manager.trigger_glitch(1500, 25)
             self.game_scene.camera.start_shake(1500, 10)
-            self.rect.topleft = (self.start_x, self.start_y)  # Reset position
+            self.rect.topleft = (self.start_x, self.start_y)
 
     def update(self, walls):
         self.get_input()
@@ -787,24 +756,21 @@ class Player(Entity):
     def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
 
-
 class Wall(Entity):
     def __init__(self, x, y, w, h):
         super().__init__(x, y, w, h, "wall")
-
 
 class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
 
-
 class CodeFragment(InteractiveObject):
     def __init__(self, x, y, w, h, fragment_id, code_string, image=None):
         super().__init__(x, y, w, h, "Code Fragment", image)
         self.fragment_id = fragment_id
         self.code_string = code_string
-        # Simple visual: a pulsating data chip
+
         self.base_image = pygame.Surface((w, h), pygame.SRCALPHA)
         pygame.draw.rect(self.base_image, DARK_GRAY, (0, 0, w, h))
         pygame.draw.rect(self.base_image, CYAN, (2, 2, w - 4, h - 4), 2)
@@ -818,19 +784,18 @@ class CodeFragment(InteractiveObject):
         game_scene = game_state_manager.states["GAME"]
         game_scene.code_fragment_manager.collect_fragment(self.fragment_id, self.code_string)
         game_scene.popup_manager.add_popup(f"Code Fragment '{self.fragment_id}' acquired.", 3)
-        # Remove from game world
+
         if self in game_scene.interactives:
             game_scene.interactives.remove(self)
         assets.play_sound("powerup")
 
     def draw(self, surface, camera, puzzle_manager=None):
-        # Add a pulsating alpha effect to make it stand out
+
         self.pulse_timer += 0.05
         alpha = 155 + math.sin(self.pulse_timer) * 100
         self.image = self.base_image.copy()
         self.image.set_alpha(alpha)
         super().draw(surface, camera, puzzle_manager)
-
 
 class NoticeBoard(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
@@ -843,7 +808,6 @@ class NoticeBoard(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 6)
 
-
 class CorruptedDataLog(InteractiveObject):
     def __init__(self, x, y, w, h, message, image=None):
         super().__init__(x, y, w, h, "corrupted data log", image=image)
@@ -855,7 +819,6 @@ class CorruptedDataLog(InteractiveObject):
     def interact(self, game_state_manager, puzzle_manager):
         game_state_manager.current_state.popup_manager.add_popup(self.message, 5)
         game_state_manager.current_state.glitch_manager.trigger_glitch(500, 10)
-
 
 class PuzzleTerminal(InteractiveObject):
     def __init__(self, x, y, w, h, name, puzzle_id, question, answer, image=None):
@@ -871,7 +834,6 @@ class PuzzleTerminal(InteractiveObject):
         if not puzzle_manager.get_state(f"{self.puzzle_id}_solved"):
             game_state_manager.current_state.popup_manager.add_popup(
                 f"Memory Fragment Recovery: {self.question}", 8)
-
 
 class Door(InteractiveObject):
     def __init__(self, x, y, w, h, image_locked=None, image_unlocked=None):
@@ -899,7 +861,6 @@ class Door(InteractiveObject):
             color = BRIGHT_GREEN if is_unlocked else RED
             pygame.draw.rect(surface, color, camera.apply(self.rect))
 
-
 class Terminal(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
         super().__init__(x, y, w, h, "ChronoSyn terminal", image=image)
@@ -913,7 +874,6 @@ class Terminal(InteractiveObject):
             game_state_manager.set_state("TERMINAL")
         else:
             game_state_manager.current_state.popup_manager.add_popup("No power to the terminal.", 2)
-
 
 class PowerCable(InteractiveObject):
     def __init__(self, x, y, w, h, image=None):
@@ -931,7 +891,6 @@ class PowerCable(InteractiveObject):
             game_state_manager.current_state.glitch_manager.trigger_glitch(1000, 15)
             game_state_manager.current_state.camera.start_shake(1000, 5)
             assets.play_sound("hum", loops=-1)
-
 
 class StoryState(BaseState):
     def __init__(self, state_manager, next_state):
@@ -965,7 +924,6 @@ class StoryState(BaseState):
 
         self.skip_prompt = UI_FONT.render("> Press any key to speed up / skip...", True, AMBER)
 
-        # <<< MODIFIED: Increased value from 50 to 80 to slow down typing.
         self.typing_delay = 65
         self.line_pause = 500
 
@@ -1005,8 +963,7 @@ class StoryState(BaseState):
                 if self.current_char_index < line_len:
                     self.current_char_index += 1
                     if current_line_text[self.current_char_index - 1] != ' ':
-                        # <<< MODIFIED: Typing sound is now disabled.
-                        # assets.play_sound('key_press')
+
                         pass
                 else:
                     self.state = "PAUSED"
@@ -1041,7 +998,6 @@ class StoryState(BaseState):
         prompt_rect = self.skip_prompt.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
         surface.blit(self.skip_prompt, prompt_rect)
 
-
 class LevelIntroState(BaseState):
     def __init__(self, state_manager, level_manager):
         super().__init__()
@@ -1058,10 +1014,9 @@ class LevelIntroState(BaseState):
         self.wrapped_story_lines = wrap_text(story_text, STORY_FONT, SCREEN_WIDTH * 0.9)
         self.level_title_surf = LEVEL_TITLE_FONT.render(self.level_title, True, WHITE)
 
-        # Render objective surfaces
         self.objective_surfs = []
         for i, line in enumerate(objective_lines):
-            color = AMBER if i == 0 else WHITE  # Header is Amber, objectives are White
+            color = AMBER if i == 0 else WHITE
             self.objective_surfs.append(UI_FONT.render(line, True, color))
 
         self.char_index = 0
@@ -1099,11 +1054,10 @@ class LevelIntroState(BaseState):
 
     def draw(self, surface):
         surface.fill(BLACK)
-        # --- Title (Location) ---
+
         title_rect = self.level_title_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.2))
         surface.blit(self.level_title_surf, title_rect)
 
-        # --- Story Intro ---
         y_pos = SCREEN_HEIGHT * 0.35
         if self.finished_typing:
             for line in self.wrapped_story_lines:
@@ -1124,9 +1078,8 @@ class LevelIntroState(BaseState):
                 story_rect = story_surf.get_rect(center=(SCREEN_WIDTH / 2, y_pos))
                 surface.blit(story_surf, story_rect)
 
-        # --- Objectives & Prompt (Show after typing is done) ---
         if self.finished_typing:
-            y_pos += 60  # Padding between intro and objectives
+            y_pos += 60
             for surf in self.objective_surfs:
                 obj_rect = surf.get_rect(centerx=SCREEN_WIDTH / 2, y=y_pos)
                 surface.blit(surf, obj_rect)
@@ -1135,7 +1088,6 @@ class LevelIntroState(BaseState):
             prompt_surf = UI_FONT.render("> Press any key to begin...", True, AMBER)
             prompt_rect = prompt_surf.get_rect(centerx=SCREEN_WIDTH / 2, bottom=SCREEN_HEIGHT - 40)
             surface.blit(prompt_surf, prompt_rect)
-
 
 class LevelManager:
     def __init__(self, state_manager):
@@ -1154,7 +1106,7 @@ class LevelManager:
         self.state_manager.add_state("GAME", game_scene)
 
         terminal_files = level_data.get("terminal_files", {})
-        # Pass the new CodeFragmentManager from the GameScene to the Terminal
+
         terminal_scene = TerminalState(self.state_manager, puzzle_manager, level_data["puzzles"], terminal_files,
                                        game_scene.code_fragment_manager)
 
@@ -1178,7 +1130,6 @@ class LevelManager:
             self.load_level(self.levels[self.current_level_index])
         else:
             self.state_manager.set_state("WIN")
-
 
 class GameScene(BaseState):
     def __init__(self, state_manager, puzzle_manager, level_manager, level_data, level_title):
@@ -1480,7 +1431,6 @@ class TerminalState(BaseState):
         self.transition_alpha, self.transition_state = 255, "in"
         self.current_prompt = ""
 
-
     def on_enter(self):
         self.transition_alpha, self.transition_state = 255, "in"
         self.input_text, self.output_lines, self.command_history, self.history_index = "", [], [], -1
@@ -1760,7 +1710,6 @@ class TerminalState(BaseState):
             fade_surf.set_alpha(self.transition_alpha)
             surface.blit(fade_surf, (0, 0))
 
-
 class MenuState(BaseState):
 
     def __init__(self, state_manager, level_manager):
@@ -1848,7 +1797,6 @@ class MenuState(BaseState):
             self.fade_surface.set_alpha(self.fade_alpha)
             surface.blit(self.fade_surface, (0, 0))
 
-
 class InstructionsState(BaseState):
     def __init__(self, state_manager):
         super().__init__()
@@ -1884,7 +1832,6 @@ class InstructionsState(BaseState):
         for surf, rect in self.rendered_lines: surface.blit(surf, rect)
         color = AMBER if self.back_button_rect.collidepoint(pygame.mouse.get_pos()) else WHITE
         surface.blit(BUTTON_FONT.render("[ Return ]", True, color), self.back_button_rect)
-
 
 class SettingsState(BaseState):
     def __init__(self, state_manager, settings_manager):
@@ -2004,7 +1951,6 @@ class SettingsState(BaseState):
         reset_text = BUTTON_FONT.render("[ Reset Defaults ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
 
-
 class WinState(BaseState):
     def __init__(self):
         super().__init__()
@@ -2041,9 +1987,6 @@ class WinState(BaseState):
         prompt_rect = self.prompt_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
         surface.blit(self.prompt_text, prompt_rect)
 
-
-# --- NARRATIVE DATA ---
-
 level_story_intros = [
     "You awaken in the Cryo-Sanctum. A prison for the body, now a prison for the mind. The first fragmented memories are here, locked away in sterile procedure terminals.",
     "You have reached Thorne's Habitation Unit. A monument to a cold and ambitious life. The memories here are personal, tainted with the hubris that led to this digital purgatory.",
@@ -2053,31 +1996,31 @@ level_story_intros = [
 ]
 
 level_objectives = [
-    # Chapter 1
+
     ["OBJECTIVES:",
      "1. Find and reactivate the backup power conduit.",
      "2. Access three puzzle terminals to recover memory codes.",
      "3. Use the main terminal to 'integrate' codes and acquire 3 Keys.",
      "4. 'unlock' the quarantine door to proceed."],
-    # Chapter 2
+
     ["OBJECTIVES:",
      "1. Re-route power to the local grid.",
      "2. Locate personal devices to find memory codes.",
      "3. 'integrate' the codes at the main terminal for 3 Keys.",
      "4. 'unlock' the door to the Data-Nave."],
-    # Chapter 3
+
     ["OBJECTIVES:",
      "1. Find the sector's power conduit.",
      "2. Sift through the Data-Nave for 3 memory fragments.",
      "3. 'integrate' the recovered codes at the main terminal.",
      "4. Acquire 3 Keys to 'unlock' the way forward."],
-    # Chapter 4
+
     ["OBJECTIVES:",
      "1. The Understrata is unstable. Restore power quickly.",
      "2. The Warden's presence is strong. Find the 3 memory codes.",
      "3. 'integrate' the codes to forge the Fragmentation Keys.",
      "4. 'unlock' the door to the system's core."],
-    # Chapter 5
+
     ["OBJECTIVES:",
      "1. You are whole. Bring the 'God-Hand' Console online.",
      "2. Recover the final three memory fragments.",
@@ -2251,7 +2194,6 @@ level_5_data = {
         "Protocol_Damnatio_Memoriae.txt": "This is the final protocol. The God-Hand Console is now active. Initiating this sequence will trigger a full-system purge of the Mindfall mainframe. All data, including the core consciousness of Aris Thorne and the parasitic Anomaly, will be permanently and irrevocably erased. There is no escape. This is not a choice. It is a necessity. It is atonement."}
 }
 
-
 def main():
     global assets, settings, voice_manager
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -2296,7 +2238,6 @@ def main():
         clock.tick(FPS)
 
     pygame.quit()
-
 
 if __name__ == "__main__":
     main()
