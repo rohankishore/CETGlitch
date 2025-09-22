@@ -1346,6 +1346,24 @@ class TerminalState(BaseState):
                 "  clear            // Clear the screen.\n"
                 "  exit             // Disconnect from terminal.",
                 instant=True)
+
+        elif command == "exec":
+            priv_level = self.puzzle_manager.get_state('privilege_level')
+            if priv_level < 2:
+                self.add_output("ERROR: Command requires privilege level 2 or higher.")
+                assets.play_sound("terminal_error")
+                return
+            if len(parts) > 1:
+                frag_id = parts[1]
+                code = self.code_fragment_manager.get_code(frag_id)
+                if code:
+                    self.execute_code(frag_id, code)
+                else:
+                    self.add_output(f"ERROR: Code Fragment '{frag_id}' not found or already used.")
+                    assets.play_sound("terminal_error")
+            else:
+                self.add_output("Usage: exec <fragment_id>")
+
         elif command == "status":
             priv = self.puzzle_manager.get_state('privilege_level')
             door = "UNLOCKED" if self.puzzle_manager.get_state("door_unlocked") else "LOCKED"
@@ -1367,6 +1385,7 @@ class TerminalState(BaseState):
                 self.add_output("ERROR: Insufficient Fragmentation Keys. Full re-integration required.")
                 voice_manager.speak("ERROR: You are not whole. You cannot proceed.")
                 assets.play_sound("terminal_error")
+
         elif command == "integrate":
             if len(parts) > 1:
                 code, found = parts[1], False
