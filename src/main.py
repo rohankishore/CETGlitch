@@ -28,7 +28,6 @@ class VoiceManager:
         if pyttsx3:
             try:
                 self.engine = pyttsx3.init()
-
                 self.engine.setProperty('rate', 175)
             except Exception as e:
                 print(f"Error initializing pyttsx3: {e}. Voice narration disabled.")
