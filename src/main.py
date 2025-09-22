@@ -1,11 +1,13 @@
+import json
 import math
 import random
 import threading
 import time
 import webbrowser
-import json
+
 import pygame
 import pyttsx3
+
 from core.const import *
 
 pygame.init()
