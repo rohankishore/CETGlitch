@@ -22,8 +22,6 @@ LEVEL_TITLE_FONT = pygame.font.SysFont("Consolas", 64)
 STORY_FONT = pygame.font.SysFont("Consolas", 28)
 
 
-
-
 class VoiceManager:
     def __init__(self):
         self.engine = None
@@ -323,6 +321,7 @@ class PopupManager:
         for popup in self.popups:
             surface.blit(popup['surface'], popup['rect'])
 
+
 class GameStateManager:
     def __init__(self, initial_state):
         self.states = {}
@@ -443,6 +442,7 @@ class GlitchManager:
             static_surf.set_alpha(max_alpha)
             surface.blit(static_surf, (0, 0))
 
+
 class CodeFragmentManager:
     def __init__(self):
         self.fragments = {}  # {'id': 'code_string', ...}
@@ -460,7 +460,6 @@ class CodeFragmentManager:
         if frag_id in self.fragments:
             del self.fragments[frag_id]
             self.used_fragments.add(frag_id)
-
 
 
 class Camera:
@@ -526,6 +525,7 @@ class Entity(pygame.sprite.Sprite):
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
 
+
 class WardenHunter(Entity):
     def __init__(self, x, y):
         size = 40
@@ -552,7 +552,7 @@ class WardenHunter(Entity):
 
         # Simple movement A
         if now > self.move_timer:
-            self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)]) # Can pause
+            self.direction = random.choice([(1, 0), (-1, 0), (0, 1), (0, -1), (0, 0)])  # Can pause
             self.move_timer = now + random.randint(1000, 3000)
 
         dx = self.direction[0] * self.speed
@@ -567,7 +567,6 @@ class WardenHunter(Entity):
         if self.rect.colliderect(player.rect):
             player.get_caught()
 
-
     def check_collision(self, direction, collidables, velocity):
         for entity in collidables:
             if self.rect.colliderect(entity.rect):
@@ -577,7 +576,7 @@ class WardenHunter(Entity):
                 if direction == 'y':
                     if velocity > 0: self.rect.bottom = entity.rect.top
                     if velocity < 0: self.rect.top = entity.rect.bottom
-                self.direction = (-self.direction[0], -self.direction[1]) # Reverse direction on hit
+                self.direction = (-self.direction[0], -self.direction[1])  # Reverse direction on hit
 
 
 class Player(Entity):
@@ -669,6 +668,7 @@ class Player(Entity):
     def draw(self, surface, camera):
         surface.blit(self.image, camera.apply(self.rect))
 
+
 class Wall(Entity):
     def __init__(self, x, y, w, h):
         super().__init__(x, y, w, h, "wall")
@@ -678,6 +678,7 @@ class InteractiveObject(Entity):
     def get_interaction_message(self, puzzle_manager): return f"It's a {self.name}."
 
     def interact(self, game_state_manager, puzzle_manager): print(f"Interacted with {self.name}")
+
 
 class CodeFragment(InteractiveObject):
     def __init__(self, x, y, w, h, fragment_id, code_string, image=None):
@@ -744,7 +745,7 @@ class PuzzleTerminal(InteractiveObject):
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state(
-            f"{self.puzzle_id}_solved"): return f"The {self.name} is inert. A memory re-integrated."
+                f"{self.puzzle_id}_solved"): return f"The {self.name} is inert. A memory re-integrated."
         return f"> A flickering {self.name}. [E] to access memory fragment."
 
     def interact(self, game_state_manager, puzzle_manager):
@@ -764,7 +765,7 @@ class Door(InteractiveObject):
 
     def get_interaction_message(self, puzzle_manager):
         if puzzle_manager.get_state(
-            "door_unlocked"): return "The final door is unlocked. [E] to proceed to the next sector."
+                "door_unlocked"): return "The final door is unlocked. [E] to proceed to the next sector."
         return "> Quarantine lock active. Requires 3 Fragmentation Keys."
 
     def interact(self, game_state_manager, puzzle_manager):
@@ -1224,6 +1225,7 @@ class GameScene(BaseState):
 
         pygame.draw.rect(map_surf, CYAN, scale_rect(self.player.rect))
         surface.blit(map_surf, (SCREEN_WIDTH - 270, 60))
+
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
