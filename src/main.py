@@ -1232,15 +1232,16 @@ class GameScene(BaseState):
 
 
 class TerminalState(BaseState):
-    def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files):
+    def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files, code_fragment_manager):
         super().__init__()
         self.state_manager, self.puzzle_manager, self.puzzles, self.files = state_manager, puzzle_manager, puzzles_data, terminal_files
+        self.code_fragment_manager = code_fragment_manager
         self.input_text, self.output_lines, self.command_history, self.history_index = "", [], [], -1
         self.cursor_visible, self.cursor_timer = True, 0
         self.typewriter_effect = {"text": "", "pos": 0, "lines": [], "start_time": 0}
         self.transition_alpha, self.transition_state = 255, "in"
-
         self.current_prompt = ""
+
 
     def on_enter(self):
         self.transition_alpha, self.transition_state = 255, "in"
