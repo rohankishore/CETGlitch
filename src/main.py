@@ -877,6 +877,17 @@ class Player(Entity):
         self.animation_speed = 0.2
         self.bob_height = 2
 
+        self.is_lucid = False
+        self.lucid_duration = 3000  # 3 seconds
+        self.lucid_timer = 0
+        self.lucid_cooldown = 15000  # 15 seconds
+        self.lucid_cooldown_timer = 0
+
+        # After-Effects
+        self.controls_reversed = False
+        self.after_effect_duration = 5000  # 5 seconds
+        self.after_effect_timer = 0
+
         self.speed = 5
         self.dx, self.dy = 0, 0
         self.is_walking = False
@@ -900,10 +911,41 @@ class Player(Entity):
             self.game_scene.camera.start_shake(1500, 10)
             self.rect.topleft = (self.start_x, self.start_y)
 
-    def update(self, walls):
+    def update(self, walls, game_scene):
         self.get_input()
         self.move(walls)
+        self.update_lucid_state(game_scene)
         self.update_sound()
+
+    def update_lucid_state(self, game_scene):
+        now = pygame.time.get_ticks()
+
+        # Cooldown management
+        if self.lucid_cooldown_timer > 0 and now > self.lucid_cooldown_timer:
+            self.lucid_cooldown_timer = 0  # Cooldown finished
+            game_scene.popup_manager.add_popup("Lucid state re-stabilized.", 2)
+
+        # Active lucid state timer
+        if self.is_lucid and now > self.lucid_timer:
+            self.is_lucid = False
+            game_scene.glitch_manager.trigger_glitch(500, 25)  # Glitch out of the state
+            print("[Player] Lucid state ended.")
+
+            # Chance for a negative after-effect
+            if random.random() < 0.33:  # 33% chance
+                self.controls_reversed = True
+                self.after_effect_timer = now + self.after_effect_duration
+                game_scene.popup_manager.add_popup("WARNING: Synaptic feedback loop detected!", 4)
+
+        # After-effect timer
+        if self.controls_reversed and now > self.after_effect_timer:
+            self.controls_reversed = False
+
+    def activate_lucid(self, game_scene):
+        now = pygame.time.get_ticks()
+        if self.lucid_cooldown_timer > 0:
+            print("[Player] Cannot enter lucid state: Re-stabilizing.")
+            return
 
     def animate(self):
         if self.is_walking:
@@ -972,8 +1014,9 @@ class Player(Entity):
 
 
 class Wall(Entity):
-    def __init__(self, x, y, w, h):
+    def __init__(self, x, y, w, h, phasable):
         super().__init__(x, y, w, h, "wall")
+        self.phasable = phasable
 
 
 class InteractiveObject(Entity):
