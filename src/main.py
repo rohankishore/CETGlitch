@@ -1,10 +1,11 @@
 import json
 import math
+import os
 import random
 import threading
 import time
 import webbrowser
-import os
+
 import pygame
 import pyttsx3
 
@@ -1642,7 +1643,7 @@ class TerminalState(BaseState):
                 if event.key == pygame.K_RETURN:
                     if self.input_text.strip(): self.command_history.insert(0, self.input_text); self.history_index = -1
                     self.process_command()
-                elif self.warden_interference_active and random.random() < 0.3:  # If interference is on
+                elif self.warden_interference_active and random.random() < 0.3:
                     self.input_text += random.choice(['#', '?', '!', '_', str(random.randint(0, 9))])
                     assets.play_sound("glitch")
                 elif event.key == pygame.K_BACKSPACE:
