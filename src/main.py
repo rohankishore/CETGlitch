@@ -1378,9 +1378,9 @@ class GameScene(BaseState):
         now = pygame.time.get_ticks()
         self.player.update(self.walls)
 
-        # NEW: Update rain particles
-        for p in self.rain_particles:
-            p.update()
+        if self.rain_particles:
+            for p in self.rain_particles:
+                p.update()
 
         self.update_reflections()
         self.reflection_effects = [r for r in self.reflection_effects if now < r['end_time']]
@@ -1436,14 +1436,12 @@ class GameScene(BaseState):
         self.flicker_timer = (self.flicker_timer + 1) % 60
         surface.fill(DARK_GRAY if self.flicker_timer < 50 else DARK_PURPLE)
 
-        # NEW: Draw the digital rain in the background
-        for p in self.rain_particles:
-            p.draw(surface)
+        if self.rain_particles:
+            for p in self.rain_particles:
+                p.draw(surface)
 
-        # NEW: Draw reflections before the main entities
         self.draw_reflections(surface, self.camera)
 
-        # --- Original draw calls ---
         for entity in self.walls + self.interactives:
             entity.draw(surface, self.camera, self.puzzle_manager)
         for hunter in self.hunters:
