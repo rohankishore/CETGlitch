@@ -2063,7 +2063,6 @@ class SettingsState(BaseState):
         pos = widget['pos']
         value = self.settings.get(widget['key'])
 
-        # Draw Label
         label_surf = UI_FONT.render(widget['label'], True, WHITE)
         label_rect = label_surf.get_rect(midright=(pos[0] - 180, pos[1]))
         surface.blit(label_surf, label_rect)
