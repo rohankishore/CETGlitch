@@ -1469,7 +1469,7 @@ class GameScene(BaseState):
                 self.vignette_image, (SCREEN_WIDTH, SCREEN_HEIGHT)
             )
         self.warden_manager = WardenManager(self)
-        self.show_map = settings.get("show_map_on_start")
+        self.map_display_state = 1 if settings.get("show_map_on_start") else 0
 
         self.player = Player(
             level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1]
@@ -1652,7 +1652,7 @@ class GameScene(BaseState):
                 if event.key == pygame.K_e:
                     self.try_interact()
                 if event.key == pygame.K_m:
-                    self.show_map = not self.show_map
+                    self.map_display_state = (self.map_display_state + 1) % 3
 
     def try_interact(self):
         for obj in self.interactives:
@@ -1823,11 +1823,10 @@ class GameScene(BaseState):
         if self.vignette_image:
             surface.blit(self.vignette_image, (0, 0))
 
-        if self.show_map:
-            if settings.get("use_diegetic_ui"):
-                self.draw_map_holographic(surface, self.camera)
-            else:
-                self.draw_map_legacy(surface)
+        if self.map_display_state == 1:
+            self.draw_map_legacy(surface)
+        elif self.map_display_state == 2:
+            self.draw_map_holographic(surface, self.camera)
 
         if self.interaction_message:
             surface.blit(
