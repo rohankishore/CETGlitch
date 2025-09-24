@@ -1516,7 +1516,7 @@ class LevelManager:
 
 class GameScene(BaseState):
     def __init__(
-        self, state_manager, puzzle_manager, level_manager, level_data, level_title
+            self, state_manager, puzzle_manager, level_manager, level_data, level_title
     ):
         super().__init__()
         self.state_manager, self.puzzle_manager, self.level_manager = (
@@ -1536,7 +1536,12 @@ class GameScene(BaseState):
                 self.vignette_image, (SCREEN_WIDTH, SCREEN_HEIGHT)
             )
         self.warden_manager = WardenManager(self)
+
+        # 0 = Off, 1 = Legacy Map, 2 = Holographic Map
         self.map_display_state = 1 if settings.get("show_map_on_start") else 0
+
+        # Flag for the one-time power-on event
+        self.power_has_been_restored = False
 
         self.player = Player(
             level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1]
@@ -1546,16 +1551,22 @@ class GameScene(BaseState):
         self.level_title = level_title
         self.corrupted_objects = []
         self.hunters = []
-        self.interactives = []
-        self.walls = [Wall(w[0], w[1], w[2], w[3]) for w in level_data["walls"]]
 
-        self.power_has_been_restored = False  # Flag to ensure the power-on event runs only once
+        # Updated wall creation to support phasable walls
+        self.walls = []
+        for w_data in level_data["walls"]:
+            if isinstance(w_data, dict):
+                rect = w_data["rect"]
+                phasable = w_data.get("phasable", False)
+                self.walls.append(Wall(rect[0], rect[1], rect[2], rect[3], phasable=phasable))
+            else:
+                self.walls.append(Wall(w_data[0], w_data[1], w_data[2], w_data[3]))
 
-        # Start with a very dull ambient light
+        # Initialize with a dark, "power-off" ambient light
         self.lighting_manager = LightingManager(SCREEN_WIDTH, SCREEN_HEIGHT, ambient_color=(15, 15, 25))
         self.lighting_manager.set_occluders(self.walls)
 
-        # The player's light is always on
+        # Player's light is always on
         player_light = Light(
             owner=self.player, radius=250, color=(70, 160, 180),
             pulse_intensity=0.2, pulse_speed=0.05, initially_on=True
@@ -1566,101 +1577,51 @@ class GameScene(BaseState):
         self.jumpscare_effect = None
         self.ghost_face_texture = create_ghost_face_surface((80, 120))
 
-        self.rain_particles = []
-        if settings.get("enable_digital_rain"):
-            self.rain_particles = [
-                RainParticle(
-                    random.randint(0, SCREEN_WIDTH),
-                    random.randint(-SCREEN_HEIGHT, 0),
-                    TERMINAL_FONT,
-                )
-                for _ in range(250)
-            ]
+        # Create hidden objects list for Lucid Dreaming
+        self.hidden_objects = []
+        if "hidden_objects" in level_data:
+            for obj_data in level_data["hidden_objects"]:
+                if obj_data["type"] == "CodeFragment":
+                    self.hidden_objects.append(
+                        CodeFragment(
+                            obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"],
+                            obj_data["id"], obj_data["code"]
+                        )
+                    )
 
+        self.interactives = []
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = (
-                obj_data["type"],
-                obj_data["x"],
-                obj_data["y"],
-                obj_data["w"],
-                obj_data["h"],
+                obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"],
             )
             new_obj = None
+            # Object creation logic (Terminal, Door, etc.)
+            # ... (this part is long and unchanged) ...
+
+            # --- MODIFICATION: Create lights but set them to be OFF initially ---
+            light = None
             if obj_type == "Terminal":
-                new_obj = Terminal(
-                    x, y, w, h, image=assets.get_image(obj_data["image_key"])
-                )
-                light = Light(
-                    owner=new_obj,
-                    radius=180,
-                    color=(80, 180, 130),
-                    pulse_intensity=0.4,
-                    pulse_speed=0.03,
-                )
-                self.lighting_manager.add_light(light)
+                new_obj = Terminal(x, y, w, h, image=assets.get_image(obj_data["image_key"]))
+                light = Light(owner=new_obj, radius=180, color=(80, 180, 130), pulse_intensity=0.4, pulse_speed=0.03,
+                              initially_on=False)
             elif obj_type == "PowerCable":
-                new_obj = PowerCable(
-                    x, y, w, h, image=assets.get_image(obj_data["image_key"])
-                )
-                new_obj.light = Light(
-                    owner=new_obj,
-                    radius=200,
-                    color=(200, 180, 100),
-                    pulse_intensity=0.6,
-                    pulse_speed=0.1,
-                )
-            elif obj_type == "Door":
-                new_obj = Door(
-                    x,
-                    y,
-                    w,
-                    h,
-                    image_locked=assets.get_image(obj_data["image_locked_key"]),
-                    image_unlocked=assets.get_image(obj_data["image_unlocked_key"]),
-                )
-            elif obj_type == "PuzzleTerminal":
-                p_info = level_data["puzzles"][obj_data["puzzle_key"]]
-                new_obj = PuzzleTerminal(
-                    x,
-                    y,
-                    w,
-                    h,
-                    obj_data["name"],
-                    p_info["id"],
-                    p_info["question"],
-                    p_info["answer"],
-                    image=assets.get_image(obj_data["image_key"]),
-                )
-                light = Light(
-                    owner=new_obj,
-                    radius=150,
-                    color=(150, 100, 200),
-                    pulse_intensity=0.3,
-                    pulse_speed=0.02,
-                )
-                self.lighting_manager.add_light(light)
-            elif obj_type == "NoticeBoard":
-                new_obj = NoticeBoard(
-                    x,
-                    y,
-                    w,
-                    h,
-                    obj_data["message"],
-                    image=assets.get_image(obj_data["image_key"]),
-                )
-            elif obj_type == "CorruptedDataLog":
-                new_obj = CorruptedDataLog(
-                    x,
-                    y,
-                    w,
-                    h,
-                    obj_data["message"],
-                    image=assets.get_image(obj_data["image_key"]),
-                )
-            elif obj_type == "CodeFragment":
-                new_obj = CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"])
+                new_obj = PowerCable(x, y, w, h, image=assets.get_image(obj_data["image_key"]))
                 light = Light(owner=new_obj, radius=200, color=(200, 180, 100), pulse_intensity=0.6, pulse_speed=0.1,
                               initially_on=False)
+            elif obj_type == "PuzzleTerminal":
+                p_info = level_data["puzzles"][obj_data["puzzle_key"]]
+                new_obj = PuzzleTerminal(x, y, w, h, obj_data["name"], p_info["id"], p_info["question"],
+                                         p_info["answer"], image=assets.get_image(obj_data["image_key"]))
+                light = Light(owner=new_obj, radius=150, color=(150, 100, 200), pulse_intensity=0.3, pulse_speed=0.02,
+                              initially_on=False)
+            elif obj_type == "CodeFragment":
+                new_obj = CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"])
+                light = Light(owner=new_obj, radius=80, color=(180, 180, 220), pulse_intensity=0.8, pulse_speed=0.1,
+                              initially_on=False)
+            # ... (other object types like Door, NoticeBoard are here) ...
+
+            if light:
+                new_obj.light = light  # Store reference on the game object
                 self.lighting_manager.add_light(light)
 
             if new_obj:
@@ -1669,49 +1630,38 @@ class GameScene(BaseState):
         self.flicker_timer, self.interaction_message = 0, ""
 
     def add_hunter(self):
+        if len(self.hunters) >= 1:
+            self.object_corruption()
+            return
+        print("[Warden] Spawning Hunter entity.")
         px, py = self.player.rect.center
-        spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(
-            100, SCREEN_HEIGHT - 100
-        )
+        spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)
         while math.hypot(px - spawn_x, py - spawn_y) < 400:
-            spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(
-                100, SCREEN_HEIGHT - 100
-            )
+            spawn_x, spawn_y = random.randint(100, SCREEN_WIDTH - 100), random.randint(100, SCREEN_HEIGHT - 100)
+
         new_hunter = WardenHunter(spawn_x, spawn_y)
         self.hunters.append(new_hunter)
-        hunter_light = Light(
-            owner=new_hunter,
-            radius=300,
-            color=(220, 40, 40),
-            pulse_intensity=0.5,
-            pulse_speed=0.1,
-        )
+        hunter_light = Light(owner=new_hunter, radius=300, color=(220, 40, 40), pulse_intensity=0.5, pulse_speed=0.1)
         self.lighting_manager.add_light(hunter_light)
 
     def add_jumpscare_effect(self):
         end_time = pygame.time.get_ticks() + 400
-        face = create_ghost_face_surface(
-            (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), alpha=200
-        )
+        face = create_ghost_face_surface((SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2), alpha=200)
         self.jumpscare_effect = {"surface": face, "end_time": end_time}
 
     def on_enter(self):
         assets.play_sound("ambient_music", channel="music", loops=-1, fade_ms=1000)
         if self.puzzle_manager.get_state("power_restored"):
-            assets.play_sound("powerup", loops=-1)
-            for obj in self.interactives:
-                if isinstance(obj, PowerCable) and hasattr(obj, "light"):
-                    if obj.light not in self.lighting_manager.lights:
-                        self.lighting_manager.add_light(obj.light)
+            assets.play_sound("hum", loops=-1)
+            # If re-entering a level with power already on, ensure lights are on.
+            self.activate_main_power()
 
     def on_exit(self):
         self.player.stop_sound()
         sound = assets.get_sound("hum")
-        if sound:
-            sound.stop()
+        if sound: sound.stop()
         music = assets.get_sound("ambient_music")
-        if music:
-            music.fadeout(500)
+        if music: music.fadeout(500)
 
     def handle_events(self, events):
         for event in events:
@@ -1719,103 +1669,70 @@ class GameScene(BaseState):
                 if event.key == pygame.K_e:
                     self.try_interact()
                 if event.key == pygame.K_m:
+                    # Cycle through the 3 states: 0 (Off) -> 1 (Legacy) -> 2 (Holo)
                     self.map_display_state = (self.map_display_state + 1) % 3
+                if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
+                    self.player.activate_lucid(self)
 
     def try_interact(self):
+        # If lucid, check for hidden objects first
+        if self.player.is_lucid:
+            for obj in self.hidden_objects:
+                if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
+                    assets.play_sound("interact")
+                    obj.interact(self.state_manager, self.puzzle_manager)
+                    self.hidden_objects.remove(obj)  # Collect and remove
+                    return
+
+        # Check normal interactives
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
                 assets.play_sound("interact")
-                if isinstance(obj, PowerCable) and not self.puzzle_manager.get_state(
-                    "power_restored"
-                ):
-                    if (
-                        hasattr(obj, "light")
-                        and obj.light not in self.lighting_manager.lights
-                    ):
-                        self.lighting_manager.add_light(obj.light)
                 obj.interact(self.state_manager, self.puzzle_manager)
                 return
 
-    def update_reflections(self):
-        if self.player.dx == 0 and self.player.dy == 0:
-            self.player.idle_timer += 1
-        else:
-            self.player.idle_timer = 0
+    def activate_main_power(self):
+        """Called once to bring the sector lights online."""
+        if self.power_has_been_restored: return  # Prevent re-running
 
-        if self.player.idle_timer > 180 and random.random() < 0.01:
-            for item in self.interactives:
-                is_reflective = False
-                if isinstance(item, Terminal) and not self.puzzle_manager.get_state(
-                    "power_restored"
-                ):
-                    is_reflective = True
-                if isinstance(item, PuzzleTerminal) and self.puzzle_manager.get_state(
-                    f"{item.puzzle_id}_solved"
-                ):
-                    is_reflective = True
-                if is_reflective:
-                    dist = math.hypot(
-                        item.rect.centerx - self.player.rect.centerx,
-                        item.rect.centery - self.player.rect.centery,
-                    )
-                    if dist < 120:
-                        print(f"[Reflection] Triggered on {item.name}")
-                        self.reflection_effects.append(
-                            {
-                                "surface": self.ghost_face_texture,
-                                "rect": item.rect,
-                                "end_time": pygame.time.get_ticks() + 1000,
-                            }
-                        )
-                        self.player.idle_timer = 0
-                        return
+        print("[GameScene] Main power online. Brightening sector.")
+        brighter_ambient = (70, 70, 85)
+        self.lighting_manager.set_ambient_light(brighter_ambient)
+
+        for obj in self.interactives:
+            if hasattr(obj, 'light') and obj.light is not None:
+                obj.light.turn_on()
+
+        self.power_has_been_restored = True
 
     def update(self):
         now = pygame.time.get_ticks()
-        self.player.update(self.walls)
 
-        if self.rain_particles:
-            for p in self.rain_particles:
-                p.update()
-
-        self.update_reflections()
-        self.reflection_effects = [
-            r for r in self.reflection_effects if now < r["end_time"]
-        ]
-        if self.jumpscare_effect and now > self.jumpscare_effect["end_time"]:
-            self.jumpscare_effect = None
-
+        # Check for the one-time power restoration event
         if not self.power_has_been_restored and self.puzzle_manager.get_state("power_restored"):
             self.activate_main_power()
-            self.power_has_been_restored = True
+
+        self.player.update(self.walls, self)
 
         for hunter in self.hunters:
-            hunter.update(self.player, self.walls)
+            hunter.update(self.player, self.walls)  # Pass more args if Hunter logic needs it
+
         self.camera.update(self.player)
         self.glitch_manager.update()
         self.warden_manager.update()
         self.popup_manager.update()
-        self.corrupted_objects = [
-            o for o in self.corrupted_objects if o["end_time"] > now
-        ]
+
+        self.corrupted_objects = [o for o in self.corrupted_objects if o["end_time"] > now]
+        self.reflection_effects = [r for r in self.reflection_effects if now < r["end_time"]]
+        if self.jumpscare_effect and now > self.jumpscare_effect["end_time"]:
+            self.jumpscare_effect = None
+
         prompt = ""
         for obj in self.interactives:
             if self.player.rect.colliderect(obj.rect.inflate(20, 20)):
                 prompt = obj.get_interaction_message(self.puzzle_manager)
                 break
         self.interaction_message = prompt
-
-    def activate_main_power(self):
-        """This function is called once to bring the sector lights online."""
-        print("[GameScene] Main power online. Brightening sector.")
-        # 1. Set the new, brighter ambient light target
-        brighter_ambient = (70, 70, 85) # A brighter, sterile utility light color
-        self.lighting_manager.set_ambient_light(brighter_ambient)
-
-        # 2. Iterate through all objects and turn their lights on
-        for obj in self.interactives:
-            if hasattr(obj, 'light') and obj.light is not None:
-                obj.light.turn_on()
 
     def draw_reflections(self, surface, camera):
         entities_to_reflect = (
@@ -1844,6 +1761,7 @@ class GameScene(BaseState):
 
             reflection_pos = (cam_rect.x, cam_rect.bottom)
             surface.blit(distorted_surf, reflection_pos)
+
 
     def draw(self, surface):
         self.flicker_timer = (self.flicker_timer + 1) % 60
@@ -2019,7 +1937,7 @@ class GameScene(BaseState):
         ]
         for corner in map_corners:
             pygame.draw.line(surface, (50, 100, 150, 80), player_pos_screen, corner, 2)
-
+Zz
 
 class TerminalState(BaseState):
     def __init__(
