@@ -2678,7 +2678,9 @@ class WinState(BaseState):
             "You are erased. The Warden is erased. Aris Thorne is erased.",
             "But the Anomaly endures. Contained, but waiting.",
             "",
-            "The quarantine holds. For now.",
+            "The quarantine holds",
+            "",
+            "For now.",
         ]
         self.rendered_lines = [
             MESSAGE_FONT.render(line, True, RED) for line in self.lines
