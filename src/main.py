@@ -1482,14 +1482,16 @@ class GameScene(BaseState):
         self.interactives = []
         self.walls = [Wall(w[0], w[1], w[2], w[3]) for w in level_data["walls"]]
 
-        self.lighting_manager = LightingManager(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.power_has_been_restored = False  # Flag to ensure the power-on event runs only once
+
+        # Start with a very dull ambient light
+        self.lighting_manager = LightingManager(SCREEN_WIDTH, SCREEN_HEIGHT, ambient_color=(15, 15, 25))
         self.lighting_manager.set_occluders(self.walls)
+
+        # The player's light is always on
         player_light = Light(
-            owner=self.player,
-            radius=250,
-            color=(70, 160, 180),
-            pulse_intensity=0.2,
-            pulse_speed=0.05,
+            owner=self.player, radius=250, color=(70, 160, 180),
+            pulse_intensity=0.2, pulse_speed=0.05, initially_on=True
         )
         self.lighting_manager.add_light(player_light)
 
@@ -1590,13 +1592,8 @@ class GameScene(BaseState):
                 )
             elif obj_type == "CodeFragment":
                 new_obj = CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"])
-                light = Light(
-                    owner=new_obj,
-                    radius=80,
-                    color=(180, 180, 220),
-                    pulse_intensity=0.8,
-                    pulse_speed=0.1,
-                )
+                light = Light(owner=new_obj, radius=200, color=(200, 180, 100), pulse_intensity=0.6, pulse_speed=0.1,
+                              initially_on=False)
                 self.lighting_manager.add_light(light)
 
             if new_obj:
@@ -1720,6 +1717,10 @@ class GameScene(BaseState):
         ]
         if self.jumpscare_effect and now > self.jumpscare_effect["end_time"]:
             self.jumpscare_effect = None
+
+        if not self.power_has_been_restored and self.puzzle_manager.get_state("power_restored"):
+            self.activate_main_power()
+            self.power_has_been_restored = True
 
         for hunter in self.hunters:
             hunter.update(self.player, self.walls)
