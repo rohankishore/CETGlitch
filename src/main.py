@@ -2822,6 +2822,7 @@ level_1_data = {
         (1270, 0, 10, 720),
         (0, 710, 1280, 10),
     ],
+    "phasable": True,
     "objects": [
         {
             "type": "Terminal",
@@ -2911,6 +2912,8 @@ level_2_data = {
         (300, 0, 10, 400),
         (600, 300, 10, 420),
     ],
+    "phasable": True,
+
     "objects": [
         {
             "type": "Terminal",
