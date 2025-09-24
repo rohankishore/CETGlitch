@@ -2091,14 +2091,12 @@ class SettingsState(BaseState):
         body_color = CYAN if is_on else DARK_GRAY
         pygame.draw.rect(surface, body_color, body_rect, border_radius=15)
 
-        # Draw knob
         knob_x = body_rect.right - 20 if is_on else body_rect.left + 20
         knob_color = WHITE
         if body_rect.collidepoint(mouse_pos):
-            knob_color = AMBER  # Hover effect
+            knob_color = AMBER
         pygame.draw.circle(surface, knob_color, (knob_x, body_rect.centery), 12)
 
-        # Draw caption if it exists
         if 'caption' in widget:
             caption_surf = pygame.font.SysFont("Consolas", 18).render(widget['caption'], True, (150, 150, 150))
             caption_rect = caption_surf.get_rect(midtop=(label_rect.centerx, label_rect.bottom + 5))
@@ -2108,7 +2106,6 @@ class SettingsState(BaseState):
         surface.fill(BLACK)
         mouse_pos = pygame.mouse.get_pos()
 
-        # Draw rain if enabled
         if self.settings.get('enable_digital_rain'):
             for p in self.rain_particles:
                 p.update()
@@ -2116,7 +2113,6 @@ class SettingsState(BaseState):
 
         surface.blit(self.title_text, self.title_rect)
 
-        # Draw all widgets
         for widget in self.widgets.values():
             if widget['type'] == 'header':
                 header_surf = MESSAGE_FONT.render(widget['text'], True, GREEN)
