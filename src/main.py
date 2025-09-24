@@ -217,6 +217,10 @@ class WardenManager:
         if level_index >= 1:
             events.append(self.whisper_event)
 
+        if level_index >= 3 and random.random() < 0.02:  # 2% chance on later levels
+            self.dox_player_event()
+            return
+
         chosen_event = random.choice(events)
         chosen_event()
 
