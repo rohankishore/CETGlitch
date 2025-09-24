@@ -3017,6 +3017,8 @@ level_3_data = {
         (1000, 0, 10, 300),
         (1000, 400, 10, 320),
     ],
+    "phasable": True,
+
     "objects": [
         {
             "type": "PowerCable",
@@ -3130,6 +3132,8 @@ level_4_data = {
         (1050, 10, 10, 500),
         (220, 150, 900, 10),
     ],
+    "phasable": True,
+
     "objects": [
         {
             "type": "PowerCable",
@@ -3239,6 +3243,8 @@ level_5_data = {
         (880, 200, 10, 150),
         (880, 400, 10, 110),
     ],
+    "phasable": True,
+
     "objects": [
         {
             "type": "PowerCable",
