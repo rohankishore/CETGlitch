@@ -921,7 +921,7 @@ class Player(Entity):
         now = pygame.time.get_ticks()
 
         # Cooldown management
-        if self.lucid_cooldown_timer > 0 and now > self.lucid_cooldown_timer:
+        if 0 < self.lucid_cooldown_timer < now:
             self.lucid_cooldown_timer = 0  # Cooldown finished
             game_scene.popup_manager.add_popup("Lucid state re-stabilized.", 2)
 
