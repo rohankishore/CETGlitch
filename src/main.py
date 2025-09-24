@@ -64,7 +64,8 @@ def get_light_texture(radius):
 class Light:
     """Represents a single light source in the world."""
 
-    def __init__(self, owner, radius, color, pulse_intensity=0.0, pulse_speed=0.0):
+    # Add 'initially_on' to the constructor
+    def __init__(self, owner, radius, color, pulse_intensity=0.0, pulse_speed=0.0, initially_on=True):
         self.owner = owner
         self.radius = radius
         self.color = color
@@ -72,7 +73,29 @@ class Light:
         self.pulse_intensity = pulse_intensity
         self.pulse_speed = pulse_speed
         self.pulse_timer = random.random() * math.pi * 2
-        self.dim_multiplier = 1.0
+
+        # This property will control the light's brightness for fading
+        self.target_dim_multiplier = 1.0 if initially_on else 0.0
+        self.dim_multiplier = self.target_dim_multiplier
+        self.dim_transition_speed = 0.05  # How fast the light fades in/out
+
+    def turn_on(self):
+        """Starts fading the light to full brightness."""
+        self.target_dim_multiplier = 1.0
+
+    def turn_off(self):
+        """Starts fading the light out."""
+        self.target_dim_multiplier = 0.0
+
+    def update(self):
+        """Updates the light's internal state, like the fade effect."""
+        if self.dim_multiplier != self.target_dim_multiplier:
+            # Smoothly move the current multiplier towards the target
+            diff = self.target_dim_multiplier - self.dim_multiplier
+            self.dim_multiplier += diff * self.dim_transition_speed
+            # Snap to the target when very close to prevent tiny floating point values
+            if abs(diff) < 0.01:
+                self.dim_multiplier = self.target_dim_multiplier
 
 
 class LightingManager:
@@ -81,8 +104,27 @@ class LightingManager:
     def __init__(self, width, height, ambient_color=(20, 20, 40)):
         self.light_surface = pygame.Surface((width, height))
         self.ambient_color = ambient_color
+        # Add a target for smooth transitions
+        self.target_ambient_color = ambient_color
+        self.ambient_transition_speed = 0.015
         self.lights = []
         self.occluders = []
+
+    def set_ambient_light(self, new_color):
+        """Sets the target ambient color for a smooth transition."""
+        self.target_ambient_color = new_color
+
+    def update_ambient(self):
+        """Transitions the current ambient color to the target color each frame."""
+        if self.ambient_color != self.target_ambient_color:
+            current_r, current_g, current_b = self.ambient_color
+            target_r, target_g, target_b = self.target_ambient_color
+
+            new_r = current_r + (target_r - current_r) * self.ambient_transition_speed
+            new_g = current_g + (target_g - current_g) * self.ambient_transition_speed
+            new_b = current_b + (target_b - current_b) * self.ambient_transition_speed
+
+            self.ambient_color = (int(new_r), int(new_g), int(new_b))
 
     def add_light(self, light):
         if light not in self.lights:
@@ -92,9 +134,13 @@ class LightingManager:
         self.occluders = [o.rect for o in occluders]
 
     def draw(self, target_surface, camera):
+        # Update the ambient color and each light's state
+        self.update_ambient()
+
         self.light_surface.fill(self.ambient_color)
 
         for light in self.lights:
+            light.update() # Call the new update method on each light
             light.pulse_timer += light.pulse_speed
 
             pulse_multiplier = (
