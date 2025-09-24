@@ -947,6 +947,23 @@ class Player(Entity):
             print("[Player] Cannot enter lucid state: Re-stabilizing.")
             return
 
+        if not self.is_lucid:
+            print("[Player] Entering lucid state!")
+            self.is_lucid = True
+            self.lucid_timer = now + self.lucid_duration
+            self.lucid_cooldown_timer = now + self.lucid_cooldown
+
+            # --- THE HIGH RISK ---
+            # 1. Trigger a massive visual distortion
+            game_scene.glitch_manager.trigger_glitch(self.lucid_duration, 40)
+            game_scene.camera.start_shake(self.lucid_duration, 10)
+
+            # 2. Immediately alert the Warden
+            game_scene.warden_manager.event_cooldown /= 2  # Warden gets faster
+            game_scene.warden_manager.trigger_event()  # Trigger an immediate event
+            game_scene.popup_manager.add_popup("REALITY MATRIX DESTABILIZED. WARDEN ALERTED.", 3)
+            assets.play_sound("jumpscare", channel="sfx")
+
     def animate(self):
         if self.is_walking:
             self.animation_timer += self.animation_speed
@@ -962,14 +979,17 @@ class Player(Entity):
     def get_input(self):
         keys = pygame.key.get_pressed()
         self.dx, self.dy = 0, 0
-        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
-            self.dx -= self.speed
-        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-            self.dx += self.speed
-        if keys[pygame.K_w] or keys[pygame.K_UP]:
-            self.dy -= self.speed
-        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
-            self.dy += self.speed
+
+        # Handle control reversal
+        move_left = pygame.K_a if not self.controls_reversed else pygame.K_d
+        move_right = pygame.K_d if not self.controls_reversed else pygame.K_a
+        move_up = pygame.K_w if not self.controls_reversed else pygame.K_s
+        move_down = pygame.K_s if not self.controls_reversed else pygame.K_w
+
+        if keys[move_left] or keys[pygame.K_LEFT]: self.dx -= self.speed
+        if keys[move_right] or keys[pygame.K_RIGHT]: self.dx += self.speed
+        if keys[move_up] or keys[pygame.K_UP]: self.dy -= self.speed
+        if keys[move_down] or keys[pygame.K_DOWN]: self.dy += self.speed
 
     def update_sound(self):
         is_moving_now = self.dx != 0 or self.dy != 0
@@ -997,6 +1017,10 @@ class Player(Entity):
 
     def check_collision(self, direction, collidables):
         for entity in collidables:
+
+            if self.is_lucid and isinstance(entity, Wall) and entity.phasable:
+                continue
+
             if self.rect.colliderect(entity.rect):
                 if direction == "x":
                     if self.dx > 0:
