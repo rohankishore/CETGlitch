@@ -1182,6 +1182,11 @@ class GameScene(BaseState):
         self.warden_manager = WardenManager(self)
         self.show_map = settings.get('show_map_on_start')
 
+        self.blink_timer = pygame.time.get_ticks()
+        self.next_blink = random.randint(8000, 15000)
+        self.blink_duration = 150
+        self.is_blinking = False
+
         self.player = Player(level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1])
         self.player.game_scene = self
 
