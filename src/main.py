@@ -140,11 +140,11 @@ class LightingManager:
         self.light_surface.fill(self.ambient_color)
 
         for light in self.lights:
-            light.update() # Call the new update method on each light
+            light.update()  # Call the new update method on each light
             light.pulse_timer += light.pulse_speed
 
             pulse_multiplier = (
-                1.0 - (math.sin(light.pulse_timer) * 0.5 + 0.5) * light.pulse_intensity
+                    1.0 - (math.sin(light.pulse_timer) * 0.5 + 0.5) * light.pulse_intensity
             )
 
             final_multiplier = pulse_multiplier * light.dim_multiplier
@@ -228,7 +228,7 @@ class WardenManager:
 
     def reset_timer(self):
         self.next_event_time = (
-            pygame.time.get_ticks() + self.event_cooldown + random.randint(-4000, 4000)
+                pygame.time.get_ticks() + self.event_cooldown + random.randint(-4000, 4000)
         )
 
     def update(self):
@@ -247,7 +247,7 @@ class WardenManager:
             if math.hypot(
                 w.rect.centerx - player_pos[0], w.rect.centery - player_pos[1]
             )
-            > 500
+               > 500
         ]
 
         if not candidate_walls:
@@ -1285,7 +1285,7 @@ class StoryState(BaseState):
             if event.type == pygame.KEYDOWN:
                 current_line_text = self.story_lines[self.current_line_index]["text"]
                 if self.state == "TYPING" and self.current_char_index < len(
-                    current_line_text
+                        current_line_text
                 ):
                     self.current_char_index = len(current_line_text)
                 else:
@@ -1305,8 +1305,8 @@ class StoryState(BaseState):
 
                 if self.current_char_index == 0 and line_len > 0:
                     if (
-                        current_audio_key
-                        and current_audio_key != self.last_played_audio_key
+                            current_audio_key
+                            and current_audio_key != self.last_played_audio_key
                     ):
                         assets.play_sound(current_audio_key)
                         self.last_played_audio_key = current_audio_key
@@ -1341,8 +1341,8 @@ class StoryState(BaseState):
 
         if self.current_line_index < len(self.story_lines):
             typing_line_text = self.story_lines[self.current_line_index]["text"][
-                : self.current_char_index
-            ]
+                               : self.current_char_index
+                               ]
             rendered_typing_line = STORY_FONT.render(typing_line_text, True, WHITE)
             rect = rendered_typing_line.get_rect(centerx=SCREEN_WIDTH / 2, y=y_pos)
             surface.blit(rendered_typing_line, rect)
@@ -1400,8 +1400,8 @@ class LevelIntroState(BaseState):
                 if self.char_index < current_line_len:
                     self.char_index += 1
                     if (
-                        self.wrapped_story_lines[self.line_index][self.char_index - 1]
-                        != " "
+                            self.wrapped_story_lines[self.line_index][self.char_index - 1]
+                            != " "
                     ):
                         assets.play_sound("key_press")
                 else:
@@ -1736,7 +1736,7 @@ class GameScene(BaseState):
 
     def draw_reflections(self, surface, camera):
         entities_to_reflect = (
-            self.walls + self.interactives + self.hunters + [self.player]
+                self.walls + self.interactives + self.hunters + [self.player]
         )
         for entity in entities_to_reflect:
             if not entity.image or entity.rect.height < 10:
@@ -1761,7 +1761,6 @@ class GameScene(BaseState):
 
             reflection_pos = (cam_rect.x, cam_rect.bottom)
             surface.blit(distorted_surf, reflection_pos)
-
 
     def draw(self, surface):
         self.flicker_timer = (self.flicker_timer + 1) % 60
@@ -1839,9 +1838,9 @@ class GameScene(BaseState):
         map_surf.fill(MAP_GRAY)
         map_surf.set_alpha(200)
         all_rects = (
-            [w.rect for w in self.walls]
-            + [p.rect for p in self.interactives]
-            + [h.rect for h in self.hunters]
+                [w.rect for w in self.walls]
+                + [p.rect for p in self.interactives]
+                + [h.rect for h in self.hunters]
         )
         if not all_rects:
             return
@@ -1937,16 +1936,16 @@ class GameScene(BaseState):
         ]
         for corner in map_corners:
             pygame.draw.line(surface, (50, 100, 150, 80), player_pos_screen, corner, 2)
-Zz
+
 
 class TerminalState(BaseState):
     def __init__(
-        self,
-        state_manager,
-        puzzle_manager,
-        puzzles_data,
-        terminal_files,
-        code_fragment_manager,
+            self,
+            state_manager,
+            puzzle_manager,
+            puzzles_data,
+            terminal_files,
+            code_fragment_manager,
     ):
         super().__init__()
         self.state_manager, self.puzzle_manager, self.puzzles, self.files = (
@@ -1980,7 +1979,7 @@ class TerminalState(BaseState):
         self.update_prompt()
 
         if "GAME" in self.state_manager.states and hasattr(
-            self.state_manager.states["GAME"], "warden_manager"
+                self.state_manager.states["GAME"], "warden_manager"
         ):
             game_warden = self.state_manager.states["GAME"].warden_manager
             if game_warden:
@@ -2271,7 +2270,7 @@ class TerminalState(BaseState):
             return
 
         if "GAME" in self.state_manager.states and hasattr(
-            self.state_manager.states["GAME"], "warden_manager"
+                self.state_manager.states["GAME"], "warden_manager"
         ):
             game_warden = self.state_manager.states["GAME"].warden_manager
             if game_warden and game_warden.current_interference:
@@ -2285,7 +2284,7 @@ class TerminalState(BaseState):
         if self.typewriter_effect["lines"]:
             effect = self.typewriter_effect
             if (time.time() - effect["start_time"]) * 10 > len(self.output_lines) - (
-                len(effect["lines"])
+                    len(effect["lines"])
             ):
                 if effect["lines"]:
                     self.output_lines.append(effect["lines"].pop(0))
@@ -2471,9 +2470,9 @@ class InstructionsState(BaseState):
     def handle_events(self, events):
         for event in events:
             if (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or (
-                event.type == pygame.MOUSEBUTTONDOWN
-                and event.button == 1
-                and self.back_button_rect.collidepoint(event.pos)
+                    event.type == pygame.MOUSEBUTTONDOWN
+                    and event.button == 1
+                    and self.back_button_rect.collidepoint(event.pos)
             ):
                 self.state_manager.set_state("MENU")
 
