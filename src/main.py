@@ -1997,7 +1997,6 @@ class SettingsState(BaseState):
         self.reset_button_rect = UI_FONT.render("[ Reset Defaults ]", True, WHITE).get_rect(
             center=(SCREEN_WIDTH // 2 + 150, SCREEN_HEIGHT - 60))
 
-        # Define all settings widgets in a structured way
         self.widgets = {
             'audio_header': {'type': 'header', 'text': '[ AUDIO ]', 'pos': (SCREEN_WIDTH // 2, 160)},
             'master_volume': {'type': 'slider', 'key': 'master_volume', 'label': 'Master Volume',
