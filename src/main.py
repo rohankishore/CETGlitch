@@ -681,6 +681,26 @@ class Entity(pygame.sprite.Sprite):
     def draw(self, surface, camera, puzzle_manager=None):
         surface.blit(self.image, camera.apply(self.rect))
 
+class RainParticle:
+    """Represents a single character in the digital rain effect."""
+    def __init__(self, x, y, font):
+        self.x = x
+        self.y = y
+        self.font = font
+        self.vy = random.uniform(4, 8)
+        self.char = random.choice(['0', '1', '.', ':', ',', ';', '|', ']', '['])
+        # Render the character once for performance
+        self.surf = self.font.render(self.char, True, (0, 50, 20, 180))
+
+    def update(self):
+        self.y += self.vy
+        if self.y > SCREEN_HEIGHT:
+            self.y = random.randint(-100, -20)
+            self.x = random.randint(0, SCREEN_WIDTH)
+
+    def draw(self, surface):
+        surface.blit(self.surf, (self.x, self.y))
+
 
 class WardenHunter(Entity):
     def __init__(self, x, y):
@@ -1220,6 +1240,22 @@ class GameScene(BaseState):
             self.vignette_image = pygame.transform.scale(self.vignette_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
         self.warden_manager = WardenManager(self)
         self.show_map = settings.get('show_map_on_start')
+
+        # In GameScene.__init__
+        self.rain_particles = [
+            RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(-SCREEN_HEIGHT, 0), TERMINAL_FONT) for _ in
+            range(200)]
+
+        # In GameScene.update
+        for p in self.rain_particles:
+            p.update()
+            if p.y > SCREEN_HEIGHT:  # Reset particle when it goes off screen
+                p.y = random.randint(-100, 0)
+                p.x = random.randint(0, SCREEN_WIDTH)
+
+        # In GameScene.draw, draw all the particles
+        for p in self.rain_particles:
+            p.draw(surface)
 
         self.blink_timer = pygame.time.get_ticks()
         self.next_blink = random.randint(8000, 15000)
