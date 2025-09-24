@@ -1982,34 +1982,37 @@ class SettingsState(BaseState):
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 80))
 
         self.back_button_rect = UI_FONT.render("[ Save & Return ]", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 60))
+            center=(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 40))
         self.reset_button_rect = UI_FONT.render("[ Reset Defaults ]", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2 + 150, SCREEN_HEIGHT - 60))
+            center=(SCREEN_WIDTH // 2 + 150, SCREEN_HEIGHT - 40))
 
+        # MODIFIED: Re-adjusted all Y-coordinates to prevent overlap and improve spacing
         self.widgets = {
             'audio_header': {'type': 'header', 'text': '[ AUDIO ]', 'pos': (SCREEN_WIDTH // 2, 160)},
             'master_volume': {'type': 'slider', 'key': 'master_volume', 'label': 'Master Volume',
-                              'pos': (SCREEN_WIDTH // 2, 220)},
+                              'pos': (SCREEN_WIDTH // 2, 210)},
             'music_volume': {'type': 'slider', 'key': 'music_volume', 'label': 'Music Volume',
-                             'pos': (SCREEN_WIDTH // 2, 280)},
+                             'pos': (SCREEN_WIDTH // 2, 270)},
             'sfx_volume': {'type': 'slider', 'key': 'sfx_volume', 'label': 'SFX Volume',
-                           'pos': (SCREEN_WIDTH // 2, 340)},
+                           'pos': (SCREEN_WIDTH // 2, 330)},
 
-            'visuals_header': {'type': 'header', 'text': '[ VISUALS ]', 'pos': (SCREEN_WIDTH // 2, 420)},
+            'visuals_header': {'type': 'header', 'text': '[ VISUALS ]', 'pos': (SCREEN_WIDTH // 2, 400)},
             'digital_rain': {'type': 'toggle', 'key': 'enable_digital_rain', 'label': 'Digital Rain Effect',
-                             'pos': (SCREEN_WIDTH // 2, 480), 'caption': '(Disabling may help with motion sickness)'},
+                             'pos': (SCREEN_WIDTH // 2, 450), 'caption': '(Disabling may help with motion sickness)'},
             'show_map': {'type': 'toggle', 'key': 'show_map_on_start', 'label': 'Show Map on Start',
-                         'pos': (SCREEN_WIDTH // 2, 540)},
+                         'pos': (SCREEN_WIDTH // 2, 510)},
 
-            'access_header': {'type': 'header', 'text': '[ ACCESSIBILITY ]', 'pos': (SCREEN_WIDTH // 2, 620)},
+            'access_header': {'type': 'header', 'text': '[ ACCESSIBILITY ]', 'pos': (SCREEN_WIDTH // 2, 580)},
             'voice_narration': {'type': 'toggle', 'key': 'enable_voice_narration', 'label': 'Voice Narration',
-                                'pos': (SCREEN_WIDTH // 2, 680)},
+                                'pos': (SCREEN_WIDTH // 2, 630)},
         }
         self.dragging_slider = None
 
-        self.rain_particles = [
-            RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT), TERMINAL_FONT) for _ in
-            range(150)]
+        self.rain_particles = []
+        if settings.get('enable_digital_rain'):
+            self.rain_particles = [
+                RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT), TERMINAL_FONT) for _ in
+                range(150)]
 
     def handle_events(self, events):
         for event in events:
@@ -2095,7 +2098,7 @@ class SettingsState(BaseState):
         surface.fill(BLACK)
         mouse_pos = pygame.mouse.get_pos()
 
-        if self.settings.get('enable_digital_rain'):
+        if self.rain_particles:
             for p in self.rain_particles:
                 p.update()
                 p.draw(surface)
@@ -2119,6 +2122,7 @@ class SettingsState(BaseState):
         reset_color = AMBER if self.reset_button_rect.collidepoint(mouse_pos) else WHITE
         reset_text = UI_FONT.render("[ Reset Defaults ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
+
 
 class WinState(BaseState):
     def __init__(self):
