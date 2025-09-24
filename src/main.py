@@ -187,7 +187,6 @@ class WardenManager:
         print("[Warden] Reality matrix destabilizing.")
         player_pos = self.game_scene.player.rect.center
 
-        # Find a wall far away from the player
         candidate_walls = [w for w in self.game_scene.walls if
                            math.hypot(w.rect.centerx - player_pos[0], w.rect.centery - player_pos[1]) > 500]
 
@@ -195,18 +194,16 @@ class WardenManager:
 
         wall_to_move = random.choice(candidate_walls)
 
-        # Example: shift it by its own width
         original_pos = wall_to_move.rect.topleft
         wall_to_move.rect.x += wall_to_move.rect.width
 
-        # Important: Check if the new position is clear before finalizing
         is_colliding = False
         for obj in self.game_scene.walls + self.game_scene.interactives:
             if obj is not wall_to_move and wall_to_move.rect.colliderect(obj.rect):
                 is_colliding = True
                 break
 
-        if is_colliding:  # If it's blocked, revert the move
+        if is_colliding:
             wall_to_move.rect.topleft = original_pos
 
     def trigger_backlash(self, target_name, value):
@@ -244,7 +241,7 @@ class WardenManager:
         if level_index >= 1:
             events.append(self.whisper_event)
 
-        if level_index >= 3 and random.random() < 0.02:  # 2% chance on later levels
+        if level_index >= 3 and random.random() < 0.02:
             self.dox_player_event()
             return
 
@@ -690,7 +687,6 @@ class RainParticle:
         self.font = font
         self.vy = random.uniform(4, 8)
         self.char = random.choice(['0', '1', '.', ':', ',', ';', '|', ']', '['])
-        # Render the character once for performance
         self.surf = self.font.render(self.char, True, (0, 50, 20, 180))
 
     def update(self):
@@ -1402,34 +1398,27 @@ class GameScene(BaseState):
                 break
         self.interaction_message = prompt
 
-    # NEW: Method to draw reflections
     def draw_reflections(self, surface, camera):
         entities_to_reflect = self.walls + self.interactives + self.hunters + [self.player]
         for entity in entities_to_reflect:
-            # Skip reflection for small or invisible things
             if not entity.image or entity.rect.height < 10:
                 continue
 
-            # Get the on-screen position and create the flipped image
             cam_rect = camera.apply(entity.rect)
             flipped_img = pygame.transform.flip(entity.image, False, True)
 
-            # Create a new surface for the reflection with a base color and tint
             reflection_surf = pygame.Surface(flipped_img.get_size(), pygame.SRCALPHA)
-            reflection_surf.fill((10, 25, 45, 0))  # Base color for the tint
+            reflection_surf.fill((10, 25, 45, 0))
             reflection_surf.blit(flipped_img, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-            # Create a final surface with watery distortion
             distorted_surf = pygame.Surface(flipped_img.get_size(), pygame.SRCALPHA)
             for x in range(distorted_surf.get_width()):
-                # Use a sine wave to create horizontal offset for a ripple effect
                 offset = int(math.sin(x * 0.2 + pygame.time.get_ticks() * 0.005) * 2)
                 slice_rect = pygame.Rect(x, 0, 1, distorted_surf.get_height())
                 distorted_surf.blit(reflection_surf, (offset, 0), area=slice_rect)
 
-            distorted_surf.set_alpha(60)  # Set overall transparency
+            distorted_surf.set_alpha(60)
 
-            # Position the reflection below the actual entity
             reflection_pos = (cam_rect.x, cam_rect.bottom)
             surface.blit(distorted_surf, reflection_pos)
 
