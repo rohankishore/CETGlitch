@@ -2067,7 +2067,6 @@ class SettingsState(BaseState):
         label_rect = label_surf.get_rect(midright=(pos[0] - 180, pos[1]))
         surface.blit(label_surf, label_rect)
 
-        # Draw slider bar
         bar_rect = pygame.Rect(pos[0] - 150, pos[1] - 5, 300, 10)
         pygame.draw.rect(surface, DARK_GRAY, bar_rect, border_radius=5)
 
