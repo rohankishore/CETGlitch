@@ -182,6 +182,32 @@ class WardenManager:
             self.trigger_event()
             self.reset_timer()
 
+    def shift_architecture(self):
+        print("[Warden] Reality matrix destabilizing.")
+        player_pos = self.game_scene.player.rect.center
+
+        # Find a wall far away from the player
+        candidate_walls = [w for w in self.game_scene.walls if
+                           math.hypot(w.rect.centerx - player_pos[0], w.rect.centery - player_pos[1]) > 500]
+
+        if not candidate_walls: return
+
+        wall_to_move = random.choice(candidate_walls)
+
+        # Example: shift it by its own width
+        original_pos = wall_to_move.rect.topleft
+        wall_to_move.rect.x += wall_to_move.rect.width
+
+        # Important: Check if the new position is clear before finalizing
+        is_colliding = False
+        for obj in self.game_scene.walls + self.game_scene.interactives:
+            if obj is not wall_to_move and wall_to_move.rect.colliderect(obj.rect):
+                is_colliding = True
+                break
+
+        if is_colliding:  # If it's blocked, revert the move
+            wall_to_move.rect.topleft = original_pos
+
     def trigger_backlash(self, target_name, value):
         print(f"[Warden] Backlash triggered due to hack on '{target_name}'")
         self.game_scene.popup_manager.add_popup(
