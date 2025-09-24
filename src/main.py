@@ -1738,6 +1738,18 @@ class GameScene(BaseState):
                 break
         self.interaction_message = prompt
 
+    def activate_main_power(self):
+        """This function is called once to bring the sector lights online."""
+        print("[GameScene] Main power online. Brightening sector.")
+        # 1. Set the new, brighter ambient light target
+        brighter_ambient = (70, 70, 85) # A brighter, sterile utility light color
+        self.lighting_manager.set_ambient_light(brighter_ambient)
+
+        # 2. Iterate through all objects and turn their lights on
+        for obj in self.interactives:
+            if hasattr(obj, 'light') and obj.light is not None:
+                obj.light.turn_on()
+
     def draw_reflections(self, surface, camera):
         entities_to_reflect = (
             self.walls + self.interactives + self.hunters + [self.player]
