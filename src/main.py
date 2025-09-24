@@ -1241,27 +1241,6 @@ class GameScene(BaseState):
         self.warden_manager = WardenManager(self)
         self.show_map = settings.get('show_map_on_start')
 
-        # In GameScene.__init__
-        self.rain_particles = [
-            RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(-SCREEN_HEIGHT, 0), TERMINAL_FONT) for _ in
-            range(200)]
-
-        # In GameScene.update
-        for p in self.rain_particles:
-            p.update()
-            if p.y > SCREEN_HEIGHT:  # Reset particle when it goes off screen
-                p.y = random.randint(-100, 0)
-                p.x = random.randint(0, SCREEN_WIDTH)
-
-        # In GameScene.draw, draw all the particles
-        for p in self.rain_particles:
-            p.draw(surface)
-
-        self.blink_timer = pygame.time.get_ticks()
-        self.next_blink = random.randint(8000, 15000)
-        self.blink_duration = 150
-        self.is_blinking = False
-
         self.player = Player(level_data["player"]["start_pos"][0], level_data["player"]["start_pos"][1])
         self.player.game_scene = self
 
@@ -1279,6 +1258,11 @@ class GameScene(BaseState):
         self.reflection_effects = []
         self.jumpscare_effect = None
         self.ghost_face_texture = create_ghost_face_surface((80, 120))
+
+        # NEW: Initialize Digital Rain
+        self.rain_particles = [
+            RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(-SCREEN_HEIGHT, 0), TERMINAL_FONT) for _ in
+            range(250)]
 
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
@@ -1393,15 +1377,14 @@ class GameScene(BaseState):
         now = pygame.time.get_ticks()
         self.player.update(self.walls)
 
+        # NEW: Update rain particles
+        for p in self.rain_particles:
+            p.update()
+
         self.update_reflections()
         self.reflection_effects = [r for r in self.reflection_effects if now < r['end_time']]
         if self.jumpscare_effect and now > self.jumpscare_effect['end_time']:
             self.jumpscare_effect = None
-
-        now = pygame.time.get_ticks()
-        if not self.is_blinking and now - self.blink_timer > self.next_blink:
-            self.is_blinking = True
-            self.blink_start_time = now
 
         for hunter in self.hunters:
             hunter.update(self.player, self.walls)
@@ -1417,10 +1400,49 @@ class GameScene(BaseState):
                 break
         self.interaction_message = prompt
 
+    # NEW: Method to draw reflections
+    def draw_reflections(self, surface, camera):
+        entities_to_reflect = self.walls + self.interactives + self.hunters + [self.player]
+        for entity in entities_to_reflect:
+            # Skip reflection for small or invisible things
+            if not entity.image or entity.rect.height < 10:
+                continue
+
+            # Get the on-screen position and create the flipped image
+            cam_rect = camera.apply(entity.rect)
+            flipped_img = pygame.transform.flip(entity.image, False, True)
+
+            # Create a new surface for the reflection with a base color and tint
+            reflection_surf = pygame.Surface(flipped_img.get_size(), pygame.SRCALPHA)
+            reflection_surf.fill((10, 25, 45, 0))  # Base color for the tint
+            reflection_surf.blit(flipped_img, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+            # Create a final surface with watery distortion
+            distorted_surf = pygame.Surface(flipped_img.get_size(), pygame.SRCALPHA)
+            for x in range(distorted_surf.get_width()):
+                # Use a sine wave to create horizontal offset for a ripple effect
+                offset = int(math.sin(x * 0.2 + pygame.time.get_ticks() * 0.005) * 2)
+                slice_rect = pygame.Rect(x, 0, 1, distorted_surf.get_height())
+                distorted_surf.blit(reflection_surf, (offset, 0), area=slice_rect)
+
+            distorted_surf.set_alpha(60)  # Set overall transparency
+
+            # Position the reflection below the actual entity
+            reflection_pos = (cam_rect.x, cam_rect.bottom)
+            surface.blit(distorted_surf, reflection_pos)
+
     def draw(self, surface):
         self.flicker_timer = (self.flicker_timer + 1) % 60
         surface.fill(DARK_GRAY if self.flicker_timer < 50 else DARK_PURPLE)
 
+        # NEW: Draw the digital rain in the background
+        for p in self.rain_particles:
+            p.draw(surface)
+
+        # NEW: Draw reflections before the main entities
+        self.draw_reflections(surface, self.camera)
+
+        # --- Original draw calls ---
         for entity in self.walls + self.interactives:
             entity.draw(surface, self.camera, self.puzzle_manager)
         for hunter in self.hunters:
@@ -1470,21 +1492,6 @@ class GameScene(BaseState):
         if self.jumpscare_effect:
             face_rect = self.jumpscare_effect['surface'].get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
             surface.blit(self.jumpscare_effect['surface'], face_rect)
-
-        if self.is_blinking:
-            now = pygame.time.get_ticks()
-            elapsed = now - self.blink_start_time
-            if elapsed > self.blink_duration:
-                self.is_blinking = False
-                self.blink_timer = now
-                self.next_blink = random.randint(8000, 15000)
-            else:
-                progress = abs(elapsed / self.blink_duration * 2 - 1)
-                alpha = 255 * (1 - progress)
-                blink_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-                blink_surface.fill(BLACK)
-                blink_surface.set_alpha(alpha)
-                surface.blit(blink_surface, (0, 0))
 
     def draw_map_legacy(self, surface):
         map_surf = pygame.Surface((250, 150))
@@ -1557,7 +1564,6 @@ class GameScene(BaseState):
         map_corners = [map_rect.topleft, map_rect.topright, map_rect.bottomright, map_rect.bottomleft]
         for corner in map_corners:
             pygame.draw.line(surface, (50, 100, 150, 80), player_pos_screen, corner, 2)
-
 
 class TerminalState(BaseState):
     def __init__(self, state_manager, puzzle_manager, puzzles_data, terminal_files, code_fragment_manager):
