@@ -2018,7 +2018,6 @@ class SettingsState(BaseState):
         }
         self.dragging_slider = None
 
-        # Add rain to the settings screen for immediate feedback
         self.rain_particles = [
             RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT), TERMINAL_FONT) for _ in
             range(150)]
