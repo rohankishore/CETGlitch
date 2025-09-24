@@ -1989,39 +1989,40 @@ class SettingsState(BaseState):
         super().__init__()
         self.state_manager = state_manager
         self.settings = settings_manager
-        self.title_text = BUTTON_FONT.render("System Settings", True, GREEN)
+        self.title_text = BUTTON_FONT.render("System Configuration", True, GREEN)
         self.title_rect = self.title_text.get_rect(center=(SCREEN_WIDTH // 2, 80))
 
-        self.back_button_rect = BUTTON_FONT.render("[ Save & Return ]", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2 - 200, SCREEN_HEIGHT - 80))
-        self.reset_button_rect = BUTTON_FONT.render("[ Reset Defaults ]", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2 + 200, SCREEN_HEIGHT - 80))
+        self.back_button_rect = UI_FONT.render("[ Save & Return ]", True, WHITE).get_rect(
+            center=(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT - 60))
+        self.reset_button_rect = UI_FONT.render("[ Reset Defaults ]", True, WHITE).get_rect(
+            center=(SCREEN_WIDTH // 2 + 150, SCREEN_HEIGHT - 60))
 
-        self.sliders = []
-        slider_y = 200
-        slider_width = 400
-        slider_height = 20
-        for key, label in [('master_volume', 'Master Volume'),
-                           ('music_volume', 'Music Volume'),
-                           ('sfx_volume', 'SFX Volume')]:
-            slider_rect = pygame.Rect(0, 0, slider_width, slider_height)
-            slider_rect.center = (SCREEN_WIDTH // 2, slider_y)
-            self.sliders.append({
-                'key': key,
-                'label': UI_FONT.render(label, True, WHITE),
-                'rect': slider_rect
-            })
-            slider_y += 100
+        # Define all settings widgets in a structured way
+        self.widgets = {
+            'audio_header': {'type': 'header', 'text': '[ AUDIO ]', 'pos': (SCREEN_WIDTH // 2, 160)},
+            'master_volume': {'type': 'slider', 'key': 'master_volume', 'label': 'Master Volume',
+                              'pos': (SCREEN_WIDTH // 2, 220)},
+            'music_volume': {'type': 'slider', 'key': 'music_volume', 'label': 'Music Volume',
+                             'pos': (SCREEN_WIDTH // 2, 280)},
+            'sfx_volume': {'type': 'slider', 'key': 'sfx_volume', 'label': 'SFX Volume',
+                           'pos': (SCREEN_WIDTH // 2, 340)},
 
-        self.map_toggle_button_rect = BUTTON_FONT.render("placeholder", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2, slider_y)
-        )
+            'visuals_header': {'type': 'header', 'text': '[ VISUALS ]', 'pos': (SCREEN_WIDTH // 2, 420)},
+            'digital_rain': {'type': 'toggle', 'key': 'enable_digital_rain', 'label': 'Digital Rain Effect',
+                             'pos': (SCREEN_WIDTH // 2, 480), 'caption': '(Disabling may help with motion sickness)'},
+            'show_map': {'type': 'toggle', 'key': 'show_map_on_start', 'label': 'Show Map on Start',
+                         'pos': (SCREEN_WIDTH // 2, 540)},
 
-        self.voice_toggle_button_rect = BUTTON_FONT.render("placeholder", True, WHITE).get_rect(
-            center=(SCREEN_WIDTH // 2, slider_y + 80)
-        )
-
+            'access_header': {'type': 'header', 'text': '[ ACCESSIBILITY ]', 'pos': (SCREEN_WIDTH // 2, 620)},
+            'voice_narration': {'type': 'toggle', 'key': 'enable_voice_narration', 'label': 'Voice Narration',
+                                'pos': (SCREEN_WIDTH // 2, 680)},
+        }
         self.dragging_slider = None
+
+        # Add rain to the settings screen for immediate feedback
+        self.rain_particles = [
+            RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT), TERMINAL_FONT) for _ in
+            range(150)]
 
     def handle_events(self, events):
         for event in events:
@@ -2031,18 +2032,18 @@ class SettingsState(BaseState):
                     self.state_manager.set_state("MENU")
                 elif self.reset_button_rect.collidepoint(event.pos):
                     self.settings.reset_to_defaults()
-                elif self.map_toggle_button_rect.collidepoint(event.pos):
-                    current_value = self.settings.get('show_map_on_start')
-                    self.settings.set('show_map_on_start', not current_value)
-                elif self.voice_toggle_button_rect.collidepoint(event.pos):
-                    current_value = self.settings.get('enable_voice_narration')
-                    self.settings.set('enable_voice_narration', not current_value)
-                else:
-                    for slider in self.sliders:
-                        if slider['rect'].collidepoint(event.pos):
-                            self.dragging_slider = slider
+
+                for widget in self.widgets.values():
+                    if widget['type'] == 'slider':
+                        slider_rect = pygame.Rect(widget['pos'][0] - 150, widget['pos'][1] - 15, 300, 30)
+                        if slider_rect.collidepoint(event.pos):
+                            self.dragging_slider = widget
                             self.update_slider_value(event.pos)
-                            break
+                    elif widget['type'] == 'toggle':
+                        toggle_rect = pygame.Rect(widget['pos'][0] + 70, widget['pos'][1] - 15, 80, 30)
+                        if toggle_rect.collidepoint(event.pos):
+                            self.settings.set(widget['key'], not self.settings.get(widget['key']))
+                            assets.play_sound("interact")
 
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 self.dragging_slider = None
@@ -2056,52 +2057,92 @@ class SettingsState(BaseState):
 
     def update_slider_value(self, mouse_pos):
         if not self.dragging_slider: return
-        mouse_x, _ = mouse_pos
-        slider_rect = self.dragging_slider['rect']
-        value = (mouse_x - slider_rect.left) / slider_rect.width
-        value = max(0.0, min(1.0, value))
-        self.settings.set(self.dragging_slider['key'], value)
+        slider_rect = pygame.Rect(self.dragging_slider['pos'][0] - 150, self.dragging_slider['pos'][1] - 15, 300, 30)
+        value = (mouse_pos[0] - slider_rect.left) / slider_rect.width
+        self.settings.set(self.dragging_slider['key'], max(0.0, min(1.0, value)))
+
+    def draw_slider(self, surface, widget, mouse_pos):
+        pos = widget['pos']
+        value = self.settings.get(widget['key'])
+
+        # Draw Label
+        label_surf = UI_FONT.render(widget['label'], True, WHITE)
+        label_rect = label_surf.get_rect(midright=(pos[0] - 180, pos[1]))
+        surface.blit(label_surf, label_rect)
+
+        # Draw slider bar
+        bar_rect = pygame.Rect(pos[0] - 150, pos[1] - 5, 300, 10)
+        pygame.draw.rect(surface, DARK_GRAY, bar_rect, border_radius=5)
+
+        # Draw fill based on value
+        fill_width = bar_rect.width * value
+        fill_rect = pygame.Rect(bar_rect.left, bar_rect.top, fill_width, bar_rect.height)
+        pygame.draw.rect(surface, CYAN, fill_rect, border_radius=5)
+
+        # Draw handle
+        handle_x = bar_rect.left + fill_width
+        handle_rect = pygame.Rect(0, 0, 8, 25)
+        handle_rect.center = (handle_x, bar_rect.centery)
+        pygame.draw.rect(surface, AMBER if self.dragging_slider == widget else WHITE, handle_rect, border_radius=3)
+
+    def draw_toggle_switch(self, surface, widget, mouse_pos):
+        pos = widget['pos']
+        is_on = self.settings.get(widget['key'])
+
+        # Draw Label
+        label_surf = UI_FONT.render(widget['label'], True, WHITE)
+        label_rect = label_surf.get_rect(midright=(pos[0] - 30, pos[1]))
+        surface.blit(label_surf, label_rect)
+
+        # Draw switch body
+        body_rect = pygame.Rect(pos[0] + 70, pos[1] - 15, 80, 30)
+        body_color = CYAN if is_on else DARK_GRAY
+        pygame.draw.rect(surface, body_color, body_rect, border_radius=15)
+
+        # Draw knob
+        knob_x = body_rect.right - 20 if is_on else body_rect.left + 20
+        knob_color = WHITE
+        if body_rect.collidepoint(mouse_pos):
+            knob_color = AMBER  # Hover effect
+        pygame.draw.circle(surface, knob_color, (knob_x, body_rect.centery), 12)
+
+        # Draw caption if it exists
+        if 'caption' in widget:
+            caption_surf = pygame.font.SysFont("Consolas", 18).render(widget['caption'], True, (150, 150, 150))
+            caption_rect = caption_surf.get_rect(midtop=(label_rect.centerx, label_rect.bottom + 5))
+            surface.blit(caption_surf, caption_rect)
 
     def draw(self, surface):
         surface.fill(BLACK)
-        surface.blit(self.title_text, self.title_rect)
-
         mouse_pos = pygame.mouse.get_pos()
 
-        for slider in self.sliders:
-            label_rect = slider['label'].get_rect(midright=(slider['rect'].left - 20, slider['rect'].centery))
-            surface.blit(slider['label'], label_rect)
+        # Draw rain if enabled
+        if self.settings.get('enable_digital_rain'):
+            for p in self.rain_particles:
+                p.update()
+                p.draw(surface)
 
-            pygame.draw.rect(surface, DARK_GRAY, slider['rect'], border_radius=5)
+        surface.blit(self.title_text, self.title_rect)
 
-            current_value = self.settings.get(slider['key'])
-            handle_x = slider['rect'].left + slider['rect'].width * current_value
-            handle_rect = pygame.Rect(0, 0, 10, slider['rect'].height + 10)
-            handle_rect.center = (handle_x, slider['rect'].centery)
-            pygame.draw.rect(surface, AMBER, handle_rect, border_radius=3)
+        # Draw all widgets
+        for widget in self.widgets.values():
+            if widget['type'] == 'header':
+                header_surf = MESSAGE_FONT.render(widget['text'], True, GREEN)
+                header_rect = header_surf.get_rect(center=widget['pos'])
+                surface.blit(header_surf, header_rect)
+            elif widget['type'] == 'slider':
+                self.draw_slider(surface, widget, mouse_pos)
+            elif widget['type'] == 'toggle':
+                self.draw_toggle_switch(surface, widget, mouse_pos)
 
-        is_on = self.settings.get('show_map_on_start')
-        map_toggle_text_str = f"Show Sector Map on Start: {'ON' if is_on else 'OFF'}"
-        map_toggle_color = AMBER if self.map_toggle_button_rect.collidepoint(mouse_pos) else WHITE
-        map_toggle_surf = BUTTON_FONT.render(map_toggle_text_str, True, map_toggle_color)
-        self.map_toggle_button_rect = map_toggle_surf.get_rect(center=(SCREEN_WIDTH // 2, 500))
-        surface.blit(map_toggle_surf, self.map_toggle_button_rect)
-
-        is_on_voice = self.settings.get('enable_voice_narration')
-        voice_toggle_text_str = f"Voice Narration: {'ON' if is_on_voice else 'OFF'}"
-        voice_toggle_color = AMBER if self.voice_toggle_button_rect.collidepoint(mouse_pos) else WHITE
-        voice_toggle_surf = BUTTON_FONT.render(voice_toggle_text_str, True, voice_toggle_color)
-        self.voice_toggle_button_rect = voice_toggle_surf.get_rect(center=(SCREEN_WIDTH // 2, 580))
-        surface.blit(voice_toggle_surf, self.voice_toggle_button_rect)
-
+        # Draw buttons
         back_color = AMBER if self.back_button_rect.collidepoint(mouse_pos) else WHITE
-        back_text = BUTTON_FONT.render("[ Save & Return ]", True, back_color)
+        back_text = UI_FONT.render("[ Save & Return ]", True, back_color)
         surface.blit(back_text, self.back_button_rect)
 
         reset_color = AMBER if self.reset_button_rect.collidepoint(mouse_pos) else WHITE
-        reset_text = BUTTON_FONT.render("[ Reset Defaults ]", True, reset_color)
+        reset_text = UI_FONT.render("[ Reset Defaults ]", True, reset_color)
         surface.blit(reset_text, self.reset_button_rect)
-
 
 class WinState(BaseState):
     def __init__(self):
