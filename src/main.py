@@ -214,8 +214,15 @@ class WardenManager:
         if level_index >= 4:
             events.extend([self.major_glitch, self.spawn_hunter, self.environmental_mimicry])
 
+        if level_index >= 1:  # Let's add it early
+            events.append(self.whisper_event)
+
         chosen_event = random.choice(events)
         chosen_event()
+
+    def whisper_event(self):
+        print("[Warden] Triggering auditory hallucination.")
+        assets.play_sound("whisper")
 
     def jumpscare(self):
         """A rare, high-intensity scare event."""
@@ -350,6 +357,7 @@ class AssetManager:
         self.load_image("data_log", "assets/images/data_log.png")
         self.load_image("background", "assets/images/banner.png")
         self.load_sound("walk", "assets/audios/walk.mp3")
+        self.load_sound("whisper", "assets/audios/whisper.mp3")
         self.load_sound("jumpscare", "assets/audios/jumpscare.mp3")
         self.load_sound("stalker_ambience", "assets/audios/stalker_ambience.mp3")
         self.load_sound("hum", "assets/audios/hum.mp3")
