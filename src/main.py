@@ -393,7 +393,7 @@ class PopupManager:
 
     def add_popup(self, text, duration_seconds):
         assets.play_sound("popup")
-        voice_manager.speak(text)
+        #voice_manager.speak(text)
         end_time = pygame.time.get_ticks() + duration_seconds * 1000
         lines = []
         words = text.split(' ')
