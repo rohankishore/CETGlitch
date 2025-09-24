@@ -1259,10 +1259,11 @@ class GameScene(BaseState):
         self.jumpscare_effect = None
         self.ghost_face_texture = create_ghost_face_surface((80, 120))
 
-        # NEW: Initialize Digital Rain
-        self.rain_particles = [
-            RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(-SCREEN_HEIGHT, 0), TERMINAL_FONT) for _ in
-            range(250)]
+        self.rain_particles = []
+        if settings.get('enable_digital_rain'):
+            self.rain_particles = [
+                RainParticle(random.randint(0, SCREEN_WIDTH), random.randint(-SCREEN_HEIGHT, 0), TERMINAL_FONT) for _ in
+                range(250)]
 
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"]
