@@ -228,6 +228,15 @@ class WardenManager:
         print("[Warden] Triggering auditory hallucination.")
         assets.play_sound("whisper")
 
+    def dox_player_event(self):
+        print("[Warden] PERSONALIZED THREAT INITIALIZED")
+        try:
+            username = os.getlogin()
+            message = f"SYS.WARDEN//: The ghost in the machine is not you. It's me. And I see you, {username.upper()}."
+            self.game_scene.popup_manager.add_popup(message, 6)
+        except Exception:
+            self.major_glitch()
+
     def jumpscare(self):
         """A rare, high-intensity scare event."""
         print("[Warden] JUMPSCARE TRIGGERED")
