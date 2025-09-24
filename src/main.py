@@ -2123,7 +2123,6 @@ class SettingsState(BaseState):
             elif widget['type'] == 'toggle':
                 self.draw_toggle_switch(surface, widget, mouse_pos)
 
-        # Draw buttons
         back_color = AMBER if self.back_button_rect.collidepoint(mouse_pos) else WHITE
         back_text = UI_FONT.render("[ Save & Return ]", True, back_color)
         surface.blit(back_text, self.back_button_rect)
