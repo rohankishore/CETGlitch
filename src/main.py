@@ -1833,6 +1833,7 @@ class GameScene(BaseState):
                 UI_FONT.render(self.interaction_message, True, WHITE),
                 (20, SCREEN_HEIGHT - 40),
             )
+
         location_name = (
             self.level_title.split(": ")[1]
             if ": " in self.level_title
