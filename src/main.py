@@ -2083,12 +2083,10 @@ class SettingsState(BaseState):
         pos = widget['pos']
         is_on = self.settings.get(widget['key'])
 
-        # Draw Label
         label_surf = UI_FONT.render(widget['label'], True, WHITE)
         label_rect = label_surf.get_rect(midright=(pos[0] - 30, pos[1]))
         surface.blit(label_surf, label_rect)
 
-        # Draw switch body
         body_rect = pygame.Rect(pos[0] + 70, pos[1] - 15, 80, 30)
         body_color = CYAN if is_on else DARK_GRAY
         pygame.draw.rect(surface, body_color, body_rect, border_radius=15)
