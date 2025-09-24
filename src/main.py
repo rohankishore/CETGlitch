@@ -1560,7 +1560,8 @@ class GameScene(BaseState):
                 phasable = w_data.get("phasable", False)
                 self.walls.append(Wall(rect[0], rect[1], rect[2], rect[3], phasable=phasable))
             else:
-                self.walls.append(Wall(w_data[0], w_data[1], w_data[2], w_data[3]))
+                # Add phasable=False to this line
+                self.walls.append(Wall(w_data[0], w_data[1], w_data[2], w_data[3], phasable=False))
 
         # Initialize with a dark, "power-off" ambient light
         self.lighting_manager = LightingManager(SCREEN_WIDTH, SCREEN_HEIGHT, ambient_color=(15, 15, 25))
@@ -1592,36 +1593,88 @@ class GameScene(BaseState):
         self.interactives = []
         for obj_data in level_data["objects"]:
             obj_type, x, y, w, h = (
-                obj_data["type"], obj_data["x"], obj_data["y"], obj_data["w"], obj_data["h"],
+                obj_data["type"],
+                obj_data["x"],
+                obj_data["y"],
+                obj_data["w"],
+                obj_data["h"],
             )
             new_obj = None
-            # Object creation logic (Terminal, Door, etc.)
-            # ... (this part is long and unchanged) ...
-
-            # --- MODIFICATION: Create lights but set them to be OFF initially ---
-            light = None
             if obj_type == "Terminal":
-                new_obj = Terminal(x, y, w, h, image=assets.get_image(obj_data["image_key"]))
-                light = Light(owner=new_obj, radius=180, color=(80, 180, 130), pulse_intensity=0.4, pulse_speed=0.03,
-                              initially_on=False)
+                new_obj = Terminal(
+                    x, y, w, h, image=assets.get_image(obj_data["image_key"])
+                )
+                light = Light(
+                    owner=new_obj,
+                    radius=180,
+                    color=(80, 180, 130),
+                    pulse_intensity=0.4,
+                    pulse_speed=0.03,
+                )
+                self.lighting_manager.add_light(light)
             elif obj_type == "PowerCable":
-                new_obj = PowerCable(x, y, w, h, image=assets.get_image(obj_data["image_key"]))
-                light = Light(owner=new_obj, radius=200, color=(200, 180, 100), pulse_intensity=0.6, pulse_speed=0.1,
-                              initially_on=False)
+                new_obj = PowerCable(
+                    x, y, w, h, image=assets.get_image(obj_data["image_key"])
+                )
+                new_obj.light = Light(
+                    owner=new_obj,
+                    radius=200,
+                    color=(200, 180, 100),
+                    pulse_intensity=0.6,
+                    pulse_speed=0.1,
+                )
+            elif obj_type == "Door":
+                new_obj = Door(
+                    x,
+                    y,
+                    w,
+                    h,
+                    image_locked=assets.get_image(obj_data["image_locked_key"]),
+                    image_unlocked=assets.get_image(obj_data["image_unlocked_key"]),
+                )
             elif obj_type == "PuzzleTerminal":
                 p_info = level_data["puzzles"][obj_data["puzzle_key"]]
-                new_obj = PuzzleTerminal(x, y, w, h, obj_data["name"], p_info["id"], p_info["question"],
-                                         p_info["answer"], image=assets.get_image(obj_data["image_key"]))
-                light = Light(owner=new_obj, radius=150, color=(150, 100, 200), pulse_intensity=0.3, pulse_speed=0.02,
-                              initially_on=False)
+                new_obj = PuzzleTerminal(
+                    x,
+                    y,
+                    w,
+                    h,
+                    obj_data["name"],
+                    p_info["id"],
+                    p_info["question"],
+                    p_info["answer"],
+                    image=assets.get_image(obj_data["image_key"]),
+                )
+                light = Light(
+                    owner=new_obj,
+                    radius=150,
+                    color=(150, 100, 200),
+                    pulse_intensity=0.3,
+                    pulse_speed=0.02,
+                )
+                self.lighting_manager.add_light(light)
+            elif obj_type == "NoticeBoard":
+                new_obj = NoticeBoard(
+                    x,
+                    y,
+                    w,
+                    h,
+                    obj_data["message"],
+                    image=assets.get_image(obj_data["image_key"]),
+                )
+            elif obj_type == "CorruptedDataLog":
+                new_obj = CorruptedDataLog(
+                    x,
+                    y,
+                    w,
+                    h,
+                    obj_data["message"],
+                    image=assets.get_image(obj_data["image_key"]),
+                )
             elif obj_type == "CodeFragment":
                 new_obj = CodeFragment(x, y, w, h, obj_data["id"], obj_data["code"])
-                light = Light(owner=new_obj, radius=80, color=(180, 180, 220), pulse_intensity=0.8, pulse_speed=0.1,
+                light = Light(owner=new_obj, radius=200, color=(200, 180, 100), pulse_intensity=0.6, pulse_speed=0.1,
                               initially_on=False)
-            # ... (other object types like Door, NoticeBoard are here) ...
-
-            if light:
-                new_obj.light = light  # Store reference on the game object
                 self.lighting_manager.add_light(light)
 
             if new_obj:
@@ -1765,6 +1818,17 @@ class GameScene(BaseState):
     def draw(self, surface):
         self.flicker_timer = (self.flicker_timer + 1) % 60
         surface.fill(DARK_GRAY if self.flicker_timer < 50 else DARK_PURPLE)
+
+        self.rain_particles = []
+        if settings.get("enable_digital_rain"):
+            self.rain_particles = [
+                RainParticle(
+                    random.randint(0, SCREEN_WIDTH),
+                    random.randint(-SCREEN_HEIGHT, 0),
+                    TERMINAL_FONT,
+                )
+                for _ in range(250)
+            ]
 
         if self.rain_particles:
             for p in self.rain_particles:
