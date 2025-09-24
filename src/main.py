@@ -2070,12 +2070,10 @@ class SettingsState(BaseState):
         bar_rect = pygame.Rect(pos[0] - 150, pos[1] - 5, 300, 10)
         pygame.draw.rect(surface, DARK_GRAY, bar_rect, border_radius=5)
 
-        # Draw fill based on value
         fill_width = bar_rect.width * value
         fill_rect = pygame.Rect(bar_rect.left, bar_rect.top, fill_width, bar_rect.height)
         pygame.draw.rect(surface, CYAN, fill_rect, border_radius=5)
 
-        # Draw handle
         handle_x = bar_rect.left + fill_width
         handle_rect = pygame.Rect(0, 0, 8, 25)
         handle_rect.center = (handle_x, bar_rect.centery)
