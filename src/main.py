@@ -2125,11 +2125,6 @@ class TerminalState(BaseState):
                         self.command_history.insert(0, self.input_text)
                         self.history_index = -1
                     self.process_command()
-                elif self.warden_interference_active and random.random() < 0.3:
-                    self.input_text += random.choice(
-                        ["#", "?", "!", "_", str(random.randint(0, 9))]
-                    )
-                    assets.play_sound("glitch")
                 elif event.key == pygame.K_BACKSPACE:
                     self.input_text = self.input_text[:-1]
                 elif event.key == pygame.K_ESCAPE:
