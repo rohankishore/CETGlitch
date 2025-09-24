@@ -214,7 +214,7 @@ class WardenManager:
         if level_index >= 4:
             events.extend([self.major_glitch, self.spawn_hunter, self.environmental_mimicry])
 
-        if level_index >= 1:  # Let's add it early
+        if level_index >= 1:
             events.append(self.whisper_event)
 
         chosen_event = random.choice(events)
@@ -1323,6 +1323,11 @@ class GameScene(BaseState):
         if self.jumpscare_effect and now > self.jumpscare_effect['end_time']:
             self.jumpscare_effect = None
 
+        now = pygame.time.get_ticks()
+        if not self.is_blinking and now - self.blink_timer > self.next_blink:
+            self.is_blinking = True
+            self.blink_start_time = now
+
         for hunter in self.hunters:
             hunter.update(self.player, self.walls)
         self.camera.update(self.player)
@@ -1390,6 +1395,21 @@ class GameScene(BaseState):
         if self.jumpscare_effect:
             face_rect = self.jumpscare_effect['surface'].get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
             surface.blit(self.jumpscare_effect['surface'], face_rect)
+
+        if self.is_blinking:
+            now = pygame.time.get_ticks()
+            elapsed = now - self.blink_start_time
+            if elapsed > self.blink_duration:
+                self.is_blinking = False
+                self.blink_timer = now
+                self.next_blink = random.randint(8000, 15000)
+            else:
+                progress = abs(elapsed / self.blink_duration * 2 - 1)
+                alpha = 255 * (1 - progress)
+                blink_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+                blink_surface.fill(BLACK)
+                blink_surface.set_alpha(alpha)
+                surface.blit(blink_surface, (0, 0))
 
     def draw_map_legacy(self, surface):
         map_surf = pygame.Surface((250, 150))
